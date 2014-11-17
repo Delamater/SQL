@@ -154,4 +154,4 @@ ORDER BY s.name, t.name, i.name'
 
 EXEC(@SQLToExecute)
 GO
---DECLARE @Range VARCHAR(MAX) = '''STOCK'', ''ITMMVT'', ''CPTANALIN'', ''AVALNUM'', ''STOLOTFCY''' 
+
