@@ -49,34 +49,18 @@ DECLARE
 -- Only create the table if it doesn't already exist
 IF OBJECT_ID('tempdb..#IndexChanges', 'U') IS NULL
 BEGIN
-	CREATE TABLE #TableChanges
+	CREATE TABLE #LockEscalationChanges
 	(
 		ID					INT IDENTITY(1,1) NOT NULL,
 		SchemaName			SYSNAME NOT NULL,
 		TableName			SYSNAME NOT NULL,
 		LockEscalationDesc	VARCHAR(MAX) NOT NULL,
-		SQLToExecute		VARCHAR(MAX) NULL,
+		SQLTableToExecute	VARCHAR(MAX) NULL,
+		SQLIndexToExecute	VARCHAR(MAX) NULL,
 		BatchID				UNIQUEIDENTIFIER NOT NULL,
 		RecordDate			DATETIME NOT NULL
 		
 	)
-
-	CREATE TABLE #IndexChanges
-	(
-		ID					INT IDENTITY(1,1) NOT NULL,
-		SchemaName			SYSNAME NOT NULL,
-		TableName			SYSNAME NOT NULL,
-		IndexName			SYSNAME NOT NULL,
-		SQLToExecute		VARCHAR(MAX) NOT NULL,
-		LockEscalationDesc	VARCHAR(MAX) NOT NULL,
-		IsUnique			BIT NULL,
-		IsPrimaryKey		BIT NULL,
-		AllowRowLocks		BIT NULL,
-		AllowPageLocks		BIT NULL,
-		BatchID				UNIQUEIDENTIFIER NOT NULL, 
-		RecordDate			DATETIME NOT NULL
-	)	
-
 END
 
 DECLARE @SQLToExecute VARCHAR(MAX), @BatchID UNIQUEIDENTIFIER
@@ -85,56 +69,39 @@ SET @BatchID = NEWID()
 
 /****** Discover the indexes to be adjusted to not use lock escalation *****/
 SET @SQLToExecute = 
-'INSERT INTO #TableChanges (SchemaName, TableName, LockEscalationDesc, SQLToExecute, BatchID, RecordDate)
-SELECT s.name SchemaName, t.name TableName, t.lock_escalation_desc, NULL,  ''' + CONVERT(VARCHAR(MAX), @BatchID) + ''', GETDATE()
+'INSERT INTO #LockEscalationChanges (SchemaName, TableName, LockEscalationDesc, SQLTableToExecute, SQLIndexToExecute, BatchID, RecordDate)
+SELECT s.name SchemaName, t.name TableName, t.lock_escalation_desc, NULL, NULL, ''' + CONVERT(VARCHAR(MAX), @BatchID) + ''', GETDATE()
 FROM sys.tables t
 	INNER JOIN sys.schemas s
 		ON t.schema_id = s.schema_id
 WHERE 
 	t.name IN(' + @DelimittedRangeOfTables + ') 
-	AND s.name = ''' + @Schema + ''''
+	AND s.name = ''' + @Schema + '''
+ORDER BY t.name'
 
 -- Create stub table records
 EXEC(@SQLToExecute)
 
 -- Update the table with the correct SQL to execute
-UPDATE #TableChanges
-SET SQLToExecute = 
+UPDATE #LockEscalationChanges
+SET SQLTableToExecute = 
 CASE UPPER(@State)
 	WHEN 'ON' THEN 'ALTER TABLE ' + @Schema + '.' + TableName + ' SET(LOCK_ESCALATION = TABLE)'
 	WHEN 'OFF' THEN 'ALTER TABLE ' + @Schema + '.' + TableName + ' SET(LOCK_ESCALATION = DISABLE)'
 	ELSE NULL
-END
+END,
+SQLIndexToExecute = 'ALTER INDEX ALL ON ' + @Schema + '.' + TableName + ' SET(ALLOW_PAGE_LOCKS = ' + UPPER(@State) + ')'
 
 
-/****** Discover the indexes to be adjusted to not use lock escalation *****/
-SET @SQLToExecute = 
-'INSERT INTO #IndexChanges (SchemaName, TableName, IndexName, SQLToExecute, LockEscalationDesc, IsUnique, IsPrimaryKey, AllowRowLocks, AllowPageLocks, BatchID, RecordDate)
-SELECT s.name SchemaName, t.name TableName, i.name IndexName, ''ALTER INDEX '' + i.name + '' ON '' + s.name + ''.'' + t.name +  '' SET(ALLOW_PAGE_LOCKS = ' + UPPER(@State) + ')'' AS SQLToExecute, t.lock_escalation_desc, i.is_unique, i.is_primary_key, i.allow_row_locks, i.allow_page_locks, ''' + CONVERT(VARCHAR(MAX), @BatchID) + ''', GETDATE()
-FROM sys.tables t
-	INNER JOIN sys.indexes i
-		ON t.object_id = i.object_id
-	INNER JOIN sys.schemas s
-		ON t.schema_id = s.schema_id
-WHERE 
-	t.name IN(' + @DelimittedRangeOfTables + ')
-	AND s.name = ''' + @Schema  + '''
-	AND i.name IS NOT NULL 
-ORDER BY s.name, t.name, i.name'
-
-
--- Create stub records
-EXEC(@SQLToExecute)
-
-/**************  Cursor to set all the tables ***************/
+/**************  Cursor to set all the tables and indexes ***************/
 PRINT 'Handling tables' 
 
-DECLARE handTables_cur CURSOR FOR
-SELECT SQLToExecute
-FROM #TableChanges
+DECLARE LockEsc_cur CURSOR FOR
+SELECT SQLTableToExecute, SQLIndexToExecute
+FROM #LockEscalationChanges
 
-OPEN handTables_cur 
-FETCH NEXT FROM handTables_cur  INTO @TableChangeSQL
+OPEN LockEsc_cur 
+FETCH NEXT FROM LockEsc_cur  INTO @TableChangeSQL, @IndexChangeSQL 
 
 WHILE @@FETCH_STATUS = 0
 BEGIN
@@ -142,61 +109,49 @@ BEGIN
 		IF UPPER(@DiagMode) = 'ON'
 			BEGIN
 				PRINT @TableChangeSQL
+				PRINT @IndexChangeSQL
 			END
 
 		IF UPPER(@DiagMode) = 'OFF'
 			BEGIN
 				EXEC (@TableChangeSQL)
+				EXEC (@IndexChangeSQL)
 			END
 	END TRY
 	BEGIN CATCH
 		SELECT ERROR_NUMBER() AS ErrorNumber, ERROR_MESSAGE() AS ErrorMessage, @TableSql AS ExecutedSQL
 	END CATCH
 
-	FETCH NEXT FROM handTables_cur  INTO @TableChangeSQL
+	FETCH NEXT FROM LockEsc_cur  INTO @TableChangeSQL, @IndexChangeSQL 
 END
 
 
-CLOSE handTables_cur
-DEALLOCATE handTables_cur
-
-/**************  Cursor to set all the indexes ***************/
-PRINT ' '
-PRINT 'Handling indexes' 
-
-DECLARE execTSQLCur CURSOR FOR 
-SELECT SQLToExecute
-FROM #IndexChanges
-WHERE BatchID = @BatchID
-	AND IndexName IS NOT NULL
-
-OPEN execTSQLCur 
-
-FETCH NEXT FROM execTSQLCur INTO @IndexChangeSQL  
-WHILE @@FETCH_STATUS = 0
-BEGIN
-	BEGIN TRY
-		IF UPPER(@DiagMode) = 'ON'
-			BEGIN
-				PRINT @IndexChangeSQL  
-			END
-
-		IF UPPER(@DiagMode) = 'OFF'
-			BEGIN
-				EXEC (@IndexChangeSQL)
-			END
-	END TRY
-	BEGIN CATCH
-		SELECT ERROR_NUMBER() AS ErrorNumber, ERROR_MESSAGE() AS ErrorMessage
-	END CATCH
-
-	FETCH NEXT FROM execTSQLCur INTO @IndexChangeSQL
-END
-
-CLOSE execTSQLCur
-DEALLOCATE execTSQLCur
+CLOSE LockEsc_cur
+DEALLOCATE LockEsc_cur
 
 
+-- Report results
+SET @SQLToExecute = 
+'SELECT 
+	s.name SchemaName, 
+	t.name TableName, 
+	i.name, 
+	i.type_desc IndexType, 
+	i.is_unique IndexIsUnique, 
+	i.is_primary_key IndexIsPrimaryKey, 
+	i.allow_row_locks IndexAllowsRowLocks, 
+	i.allow_page_locks IndexAllowsPageLocks, 
+	t.lock_escalation_desc TableLockEscalationDesc
+FROM sys.tables t
+	INNER JOIN sys.schemas s
+		ON t.schema_id = s.schema_id
+	INNER JOIN sys.indexes i
+		ON t.object_id = i.object_id
+WHERE 
+	t.name IN(' + @DelimittedRangeOfTables + ') 
+	AND s.name = ''' + @Schema + '''
+ORDER BY s.name, t.name, i.name'
+
+EXEC(@SQLToExecute)
 GO
 --DECLARE @Range VARCHAR(MAX) = '''STOCK'', ''ITMMVT'', ''CPTANALIN'', ''AVALNUM'', ''STOLOTFCY''' 
-
