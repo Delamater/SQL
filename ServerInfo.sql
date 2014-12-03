@@ -26,5 +26,16 @@ SELECT
        SERVERPROPERTY('SqlCharSet') SqlCharSet,
        SERVERPROPERTY('SqlCharSetName') SqlCharSetName,
        SERVERPROPERTY('SqlSortOrder') SqlSortOrder,
-       SERVERPROPERTY('SqlSortOrderName')SqlSortOrderName
-		
+       SERVERPROPERTY('SqlSortOrderName')SqlSortOrderName,
+       (SELECT windows_release from sys.dm_os_windows_info) WindowsReleaseNumber,
+	   (SELECT windows_service_pack_level from sys.dm_os_windows_info) WindowsServicePack, 
+	   (SELECT system_memory_state_desc FROM sys.dm_os_sys_memory) SystemMemoryStateDesc,
+	   (SELECT cpu_count FROM sys.dm_os_sys_info) CpuCount,
+	   (SELECT affinity_type_desc FROM sys.dm_os_sys_info) AffinityMask,
+	   (SELECT hyperthread_ratio FROM sys.dm_os_sys_info) HyperthreadRation,
+	   (SELECT (physical_memory_kb / 1024) FROM sys.dm_os_sys_info) PhysicalMemoryMB,
+	   (select sqlserver_start_time FROM sys.dm_os_sys_info) SQLServerStartTime,
+	   (SELECT virtual_machine_type_desc FROM sys.dm_os_sys_info) VirtualizationType
+
+
+
