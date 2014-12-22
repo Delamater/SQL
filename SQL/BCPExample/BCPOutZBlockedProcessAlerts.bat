@@ -1,0 +1,1 @@
+bcp ECCPROD.ZBlockedProcessAlerts out c:\temp\ZBlockedProcessAlerts.dat -S.\x3v6 -Usa -PPassw0rd -n -dx3v6

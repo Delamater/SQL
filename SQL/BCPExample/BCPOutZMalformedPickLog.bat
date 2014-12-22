@@ -1,0 +1,1 @@
+bcp ECCPROD.ZMalformedPickLog out c:\temp\ZMalformedPickLog.dat -S.\x3v6 -Usa -PPassw0rd -n -dx3v6
