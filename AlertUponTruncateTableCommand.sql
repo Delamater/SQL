@@ -127,11 +127,11 @@ BEGIN
 	
 	EXEC msdb.dbo.sp_send_dbmail
 		@profile_name = 'ADMIN',
-		@recipients = 'bob.delamater@sage.com',
+		@recipients = 'yourBusinessContinuityTeamEmail@goesHere.com',
 		@body = @myBody,
 		@body_format = 'HTML',
 		@subject = 'ALERT CONDITION: TRUNCATE TABLE COMMAND HAS BEEN RUN - TAKE IMMEDIATE ACTION',
-		@from_address = 'bob.delamater@sage.com',
+		@from_address = 'SQLServerEmailAccount@yourDomain.com',
 		@query = @SQL,
 		@attach_query_result_as_file = 1,
 		@query_result_width = 32767
