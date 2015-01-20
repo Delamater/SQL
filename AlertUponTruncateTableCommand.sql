@@ -94,9 +94,10 @@ SET @SQL =
 	DATEDIFF(MINUTE,
 		(
 			SELECT DATEADD(hh,DATEDIFF(hh,GETUTCDATE(),CURRENT_TIMESTAMP),event_time) -- Compensating for UTC Time
-		), 
-		GETDATE()) TimeDifferenceInMinutes,
-	LTRIM(RTRIM(a.statement)),
+			), 
+			GETDATE()
+		) MinutesAgoWhenCommandWasRun,
+	LTRIM(RTRIM(a.statement)) SqlStatement,
 	a.action_id, 
 	a.succeeded, 
 	a.object_name,
