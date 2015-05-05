@@ -14,6 +14,9 @@ es.host_process_id
 ,es.host_name
 ,es.program_name
 ,er.blocking_session_id
+,tl.request_mode LockMode
+,tl.request_status LockStatus
+,tl.resource_type ResourceType
 ,er.command
 ,es.reads
 ,es.writes
@@ -40,13 +43,15 @@ FROM sys.dm_exec_connections ec
 		ON ec.session_id = es.session_id
 	LEFT OUTER JOIN sys.dm_exec_requests er 
 		ON ec.connection_id = er.connection_id
+	INNER JOIN sys.dm_tran_locks tl
+		ON tl.request_session_id = er.session_id
 	OUTER APPLY sys.dm_exec_sql_text(sql_handle) st
 	OUTER APPLY sys.dm_exec_query_plan(plan_handle) ph
 WHERE 
 	--ec.session_id <> @@SPID
 	--AND es.status = 'running'
 	es.host_process_id = 4636 -- X3 sadoss.exe client process id number
+	--AND tl.resource_type In ('page', 'key', 'RID', 'object') -- For finding blocking
 ORDER BY 
 	--es.session_id
 	cpu_time DESC
-
