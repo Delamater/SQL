@@ -13,6 +13,7 @@ Description:	Insert a specific amount of rows into a table.
 			1. Temp DB Table
 			2. Table Variable
 			3. Permenant Table
+			4. In-Memory Optimized Table
 
 			The table will consist of 5 rows. An identity row, start and stop time and two nunmbers
 
