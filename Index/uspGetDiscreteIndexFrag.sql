@@ -8,9 +8,11 @@ Author:			Bob Delamater
 					a discrete set of tables only. It would be unwise to run the index fragmentation	
 					query for all tables in this scenario for a couple reasons:							
 						1. You don't need index fragmentation for most of the tables that are returned	
-						2. Checking fragmentation on all tables can be a big burden on SQL Server		
+						2. Checking fragmentation on all tables can be a big burden on SQL Server, so
+							it's best to minimize this cost whenever possible		
 																										
-					In addition, this query also brings back the row count for the table.				
+					In addition, this query also brings back the row count for the table.		
+					You can optionally rebuild indexes and the heap, or reorganize		
 																										
 	Dependencies:	dbo.uspGetDiscreteIndexFrag relies on dbo.ObjectIDs, a database "type" object.		
 																										
@@ -23,9 +25,19 @@ Author:			Bob Delamater
 					@PageCount	INT																		
 						- THis is the minimum page count an index must have in order for it to be		
 						returned within the result set													
-					@Rebuild	BIT	(FOR FUTURE USE, NOT IMPLEMENTED TODAY)																	
+					@Rebuild	BIT	
 						- Set this to 1 if you want to execute a rebuild on these indexes				
 						- Set this to 0 if you do not want to execute a rebuild on these indexes		
+					@Reorganize BIT
+						- Set this to 1 if you want to execute a reorganize on these indexes				
+						- Set this to 0 if you want to execute a reorganize on these indexes	
+					@RebuildHeap BIT
+						- You can optionally rebuild the heap. This is the equivalent of 
+						ALTER TABLE SCHEMA.TABLENAME REBUILD
+						- This switch may be passed as true with @rebuild or @reorganize on or off	
+					@MaxDop TINYINT
+						- You can optionally tell SQL to limit it's max degree of parallelism
+						- The max value is 64 in this implementation
 																										
 	Execution Instructions:																				
 					This stored procedure takes an array (or table) of objectIDs in order to process
@@ -44,12 +56,21 @@ Author:			Bob Delamater
 						INNER JOIN sys.schemas s
 							ON t.schema_id = s.schema_id
 					WHERE 
-						t.name = 'Person'
-						AND s.name = 'Person'
+						s.name = 'DEMO' 
+						AND t.name IN
+						(
+							'ITMCOST',
+							'ITMMASTER'
+						)
+						
 
-					exec [uspGetDiscreteIndexFrag] @ObjectIDs, 0, 0
-
-
+					exec dbo.uspGetDiscreteIndexFrag 
+						@ObjectIDs, @FragPercent = 0, 
+						@PageCount = 0, 
+						@Rebuild = 0, 
+						@Reorganize = 0, 
+						@RebuildHeap = 1, 
+						@MaxDop = 64
 
 *********************************************************************************************************/
 
@@ -79,8 +100,68 @@ CREATE TYPE dbo.ObjectIDs AS TABLE
 
 GO
 
-CREATE PROCEDURE dbo.uspGetDiscreteIndexFrag @Objs ObjectIDs READONLY, @FragPercent INT, @PageCount INT AS
+CREATE PROCEDURE dbo.uspGetDiscreteIndexFrag 
+	@Objs ObjectIDs READONLY, 
+	@FragPercent INT, 
+	@PageCount INT, 
+	@Rebuild BIT, 
+	@Reorganize BIT, 
+	@RebuildHeap BIT, 
+	@MaxDop TINYINT 
+	
+	AS
 BEGIN
+
+/****************************** Constants ****************************/
+DECLARE @ReorganizeOrRebuild VARCHAR(MAX)
+DECLARE @MaxDopNotForReorganize VARCHAR(MAX)
+DECLARE @NoWorkToDo	VARCHAR(MAX)
+DECLARE @IgnoringMaxDrop VARCHAR(MAX)
+DECLARE @MaxDopExceeded VARCHAR(MAX)
+
+
+SET @ReorganizeOrRebuild = 
+	'Please choose to either rebuild or reorganize, but not both. Terminating execution.'
+SET @MaxDopNotForReorganize = 
+	'MAXDOP is not allowed for index reorganizations. Terminating execution.'	
+SET @NoWorkToDo = 
+	'@Rebuild and @Reorganize and @RebuildHeap are all set to false. No work to do. Terminatating execution.'
+SET @IgnoringMaxDrop = 
+	'@MaxDop ignored for this use case.'
+SET @MaxDopExceeded = 
+	'@MaxDop cannot exceed a value of 64. Terminating execution.'
+
+
+/****************************** Sanity Checks ****************************/
+IF @MaxDop > 64
+BEGIN
+	PRINT @MaxDopExceeded
+	RETURN
+END
+IF (@Rebuild = 1 AND @Reorganize = 1)
+BEGIN
+	PRINT @ReorganizeOrRebuild
+	RETURN 
+END
+
+IF (@Rebuild = 0 AND @Reorganize = 0 AND @RebuildHeap = 0)
+BEGIN
+	PRINT @NoWorkToDo
+	RETURN
+END
+
+IF (@Reorganize = 1 AND @MaxDop = 1)
+BEGIN
+	PRINT @MaxDopNotForReorganize
+	RETURN
+END
+
+IF (@MaxDop = 1 AND @Rebuild = 0 AND @Reorganize = 0) OR (@RebuildHeap = 1 AND @MaxDop = 1)
+BEGIN
+	PRINT @IgnoringMaxDrop
+END
+
+/****************************** Table Set up  ****************************/
 	SET NOCOUNT ON
 
 	-- Create the output table
@@ -114,7 +195,9 @@ BEGIN
 		--RebuildStatment				VARCHAR(MAX)
 
 	)
-		
+
+
+/****************************** Iterations ****************************/		
 -- For every object id in the driver table, report fragmentation for all indexes for that table
 
 	DECLARE getFrag CURSOR
@@ -129,6 +212,33 @@ BEGIN
 	BEGIN
 		IF (@@fetch_status <> -2)
 		BEGIN
+			/****************************** Fix indexes ****************************/
+			IF @Rebuild = 1
+			BEGIN
+				DECLARE @sqlRebuild VARCHAR(MAX)
+				SET @sqlRebuild = 'ALTER INDEX ALL ON ' + @SchemaName + '.' + @TableName + ' REBUILD WITH(MAXDOP=' + CAST(@MaxDop AS VARCHAR(2))+ ')'
+				EXEC(@sqlRebuild)
+				PRINT '''' + @sqlRebuild + ''' Completed Successfully'
+				
+			END
+			
+			IF @Reorganize = 1 
+			BEGIN
+				DECLARE @sqlReorganize VARCHAR(MAX)
+				SET @sqlReorganize = 'ALTER INDEX ALL ON ' + @SchemaName + '.' + @TableName + ' REORGANIZE'
+				EXEC(@sqlReorganize)			
+				PRINT '''' + @sqlReorganize + ''' Completed Successfully'
+			END
+			
+			IF @RebuildHeap = 1
+			BEGIN
+				DECLARE @sqlHeap VARCHAR(MAX)
+				SET @sqlHeap = 'ALTER TABLE ' + @SchemaName + '.' + @TableName + ' REBUILD'
+				EXEC(@sqlHeap)
+				PRINT '''' + @sqlHeap + ''' Completed successfully'
+			END
+		
+			/****************************** Load output table ****************************/			
 			INSERT INTO #FragOutput
 			SELECT
 				database_id, 
@@ -181,50 +291,25 @@ BEGIN
 				AND idx.index_id > 0
 			ORDER BY idx.avg_fragmentation_in_percent desc
 		END
+		
 		FETCH NEXT FROM getFrag INTO @ObjectID, @SchemaName, @TableName
 	END
 	
 	CLOSE getFrag
 	DEALLOCATE getFrag
-
-	
+			
+/****************************** Report ****************************/		
 	SELECT 
-		DbName, SchemaName, ObjectID, ObjectName, 
+		DbName, ObjectID, SchemaName, ObjectName, 
 		TableRowCount, IndexRecordCount, [PageCount], 
 		IndexTypeDesc, IndexID, IndexName, IndexDepth, IndexDepthLevel,
 		AvgFragPercent
 		
 	FROM #FragOutput 
 	ORDER BY SchemaName, OBJECT_NAME(ObjectID), IndexName, IndexDepth, IndexDepthLevel
-	
-	
-	--IF @Rebuild = 1
-	--BEGIN
-			
-	--	DECLARE indexRebuild CURSOR READ_ONLY FOR 
-	--	SELECT RebuildStatment
-	--	FROM #FragOutput
-
-	--	DECLARE @sqlToExecute VARCHAR(MAX)
-	--	OPEN indexRebuild
-
-	--	FETCH NEXT FROM indexRebuild INTO @sqlToExecute
-	--	WHILE (@@fetch_status <> -1)
-	--	BEGIN
-	--		IF (@@fetch_status <> -2)
-	--		BEGIN			
-	--			EXEC(@sqlToExecute)
-	--		END
-
-	--		FETCH NEXT FROM indexRebuild INTO @sqlToExecute
-	--	END
-
-	--END
-	
 	 
 	DROP TABLE #FragOutput
 
 	SET NOCOUNT OFF
 END
-
 
