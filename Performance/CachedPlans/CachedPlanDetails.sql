@@ -39,10 +39,27 @@ FROM sys.dm_exec_cached_plans AS ECP
      CROSS APPLY sys.dm_exec_query_plan(ECP.[plan_handle]) AS EQP
 	 CROSS APPLY EQP.query_plan.nodes(N'//RelOp') RelOp (op)
 
+
+-- Performance optimizations
+PRINT 'Main query done, now adding indexes for performance'
+ALTER TABLE #wrk ADD ID INT IDENTITY(1,1) NOT NULL
+CREATE CLUSTERED INDEX clsCachePlans ON #wrk(ID) 
+CREATE NONCLUSTERED INDEX idxCachePlans ON #wrk(ID) 
+INCLUDE
+(
+	PhysicalOperator, EstimatedIO, EstimatedCPU, EstimatedRows,
+	Warnings, ExecutionCount, TotalWorkTime, TotalLogicalReads, 
+	TotalLogicalWrites, TotalElapsedTime, LastExecutionTime, 
+	ObjectType, CacheObjectType, DatabaseName, ObjectName, 
+	[Statement], QueryPlan
+)
+
+
+
 SELECT *
 FROM #wrk
---WHERE 
-	--PhysicalOperator IN('Table Scan', 'Deleted Scan', 'Index Scan', 'Clustered Index Scan')
+WHERE 
+	PhysicalOperator IN('Table Scan', 'Deleted Scan', 'Index Scan', 'Clustered Index Scan')
 	--Statement LIKE '%SELECT TOP 200000%'
 ORDER BY EstimatedCPU DESC
 --DROP TABLE #wrk
