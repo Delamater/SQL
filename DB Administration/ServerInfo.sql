@@ -33,9 +33,6 @@ SELECT
 	   (SELECT cpu_count FROM sys.dm_os_sys_info) CpuCount,
 	   (SELECT affinity_type_desc FROM sys.dm_os_sys_info) AffinityMask,
 	   (SELECT hyperthread_ratio FROM sys.dm_os_sys_info) HyperthreadRation,
-	   (SELECT (physical_memory_kb / 1024) FROM sys.dm_os_sys_info) PhysicalMemoryMB,
+	   (SELECT (physical_memory_in_bytes / 1024 / 1024) FROM sys.dm_os_sys_info) PhysicalMemoryMB,
 	   (select sqlserver_start_time FROM sys.dm_os_sys_info) SQLServerStartTime,
 	   (SELECT virtual_machine_type_desc FROM sys.dm_os_sys_info) VirtualizationType
-
-
-
