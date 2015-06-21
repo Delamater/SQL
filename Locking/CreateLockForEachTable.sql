@@ -6,11 +6,13 @@ SELECT * FROM sys.dm_tran_locks
 
 DECLARE 
 	@LockType VARCHAR(50), 
+	@TablesToLock VARCHAR(MAX),
 	@iCtr INT, 
 	@sql VARCHAR(MAX)
 
 
 SET @LockType = 'TABLOCK'
+SET @TablesToLock = 'AVALNUM,AVALATT'
 
 IF (SELECT OBJECT_ID('tempdb..#locks')) IS NULL
 BEGIN
@@ -40,6 +42,8 @@ FROM sys.schemas s
 WHERE 
 	s.name = 'NATRAINV6'
 	AND c.column_id = 1
+	--AND t.name IN(@TablesToLock)
+	AND CHARINDEX(',' + t.name+ ',', ',' + @TablesToLock + ',') > 0 
 SELECT * FROM #locks 
 BEGIN TRAN
 --DECLARE 	@iCtr INT, @sql VARCHAR(MAX)
@@ -63,8 +67,9 @@ WHERE
 	AND resource_associated_entity_id <> 0
 ORDER BY TableName
 
-WAITFOR DELAY '00:10:00'
-ROLLBACK
-DROP TABLE #locks
+--WAITFOR DELAY '00:10:00'
+--ROLLBACK
+--DROP TABLE #locks
+
 
 
