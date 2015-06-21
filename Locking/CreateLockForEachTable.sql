@@ -23,8 +23,8 @@ DECLARE
 	@tranName VARCHAR(10)
 
 SET @LockType = 'TABLOCK'
-SET @TablesToLock = 'AVALNUM,AVALATT'
---SET @TablesToLock = '%'
+--SET @TablesToLock = 'AVALNUM,AVALATT'
+
 
 IF (SELECT OBJECT_ID('tempdb..#locks')) IS NULL
 BEGIN
@@ -39,24 +39,44 @@ BEGIN
 	)
 END
 
-INSERT INTO #locks(SchemaName, TableName, ColumnName, Cmd)
-SELECT 
-	s.name SchemaName, 
-	t.name TableName, 
-	c.name ColumnName, 
-	--typ.name ,
-	'SET ROWCOUNT 1; UPDATE ' + s.name + '.' + t.name +  ' WITH(' + @LockType + ') SET ' + c.name + ' = ' + c.name AS ExecuteMe
-FROM sys.schemas s
-	INNER JOIN sys.tables t
-		on s.schema_id = t.schema_id
-	INNER JOIN sys.columns c
-		ON t.object_id = c.object_id
-WHERE 
-	s.name = 'NATRAINV6'
-	AND c.column_id = 1
-	--AND t.name IN(@TablesToLock)
-	AND CHARINDEX(',' + t.name+ ',', ',' + @TablesToLock + ',') > 0 
-
+IF @TablesToLock IS NOT NULL
+BEGIN
+	INSERT INTO #locks(SchemaName, TableName, ColumnName, Cmd)
+	SELECT 
+		s.name SchemaName, 
+		t.name TableName, 
+		c.name ColumnName, 
+		--typ.name ,
+		'SET ROWCOUNT 1; UPDATE ' + s.name + '.' + t.name +  ' WITH(' + @LockType + ') SET ' + c.name + ' = ' + c.name AS ExecuteMe
+	FROM sys.schemas s
+		INNER JOIN sys.tables t
+			on s.schema_id = t.schema_id
+		INNER JOIN sys.columns c
+			ON t.object_id = c.object_id
+	WHERE 
+		s.name = 'NATRAINV6'
+		AND c.column_id = 1
+		--AND t.name IN(@TablesToLock)
+		AND CHARINDEX(',' + t.name+ ',', ',' + @TablesToLock + ',') > 0 
+END
+ELSE
+BEGIN
+	INSERT INTO #locks(SchemaName, TableName, ColumnName, Cmd)
+	SELECT 
+		s.name SchemaName, 
+		t.name TableName, 
+		c.name ColumnName, 
+		--typ.name ,
+		'SET ROWCOUNT 1; UPDATE ' + s.name + '.' + t.name +  ' WITH(' + @LockType + ') SET ' + c.name + ' = ' + c.name AS ExecuteMe
+	FROM sys.schemas s
+		INNER JOIN sys.tables t
+			on s.schema_id = t.schema_id
+		INNER JOIN sys.columns c
+			ON t.object_id = c.object_id
+	WHERE 
+		s.name = 'NATRAINV6'
+		AND c.column_id = 1
+END
 SELECT * FROM #locks 
 
 BEGIN TRAN
@@ -70,9 +90,9 @@ BEGIN
 	SET @iCtr = @iCtr - 1
 
 
-	SET @tranName = 'Tran' + CONVERT(VARCHAR(10), @iCtr)
-	SAVE TRAN @tranName
-	SELECT @tranName TranName
+	--SET @tranName = 'Tran' + CONVERT(VARCHAR(10), @iCtr)
+	--SAVE TRAN @tranName
+	--SELECT @tranName TranName
 
 END
 
