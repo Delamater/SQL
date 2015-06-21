@@ -19,12 +19,12 @@ DECLARE
 	@LockType VARCHAR(50), 
 	@TablesToLock VARCHAR(MAX),
 	@iCtr INT, 
-	@sql VARCHAR(MAX)
-
+	@sql VARCHAR(MAX),
+	@tranName VARCHAR(10)
 
 SET @LockType = 'TABLOCK'
---SET @TablesToLock = 'AVALNUM,AVALATT'
-SET @TablesToLock = '%'
+SET @TablesToLock = 'AVALNUM,AVALATT'
+--SET @TablesToLock = '%'
 
 IF (SELECT OBJECT_ID('tempdb..#locks')) IS NULL
 BEGIN
@@ -60,13 +60,20 @@ WHERE
 SELECT * FROM #locks 
 
 BEGIN TRAN
---DECLARE 	@iCtr INT, @sql VARCHAR(MAX)
 SET @iCtr = (SELECT MAX(ID) FROM #locks)
+
 WHILE @iCtr > 0
 BEGIN
+
 	SET @sql = (SELECT Cmd FROM #locks WHERE ID = @iCtr) 
 	EXEC (@sql)
 	SET @iCtr = @iCtr - 1
+
+
+	SET @tranName = 'Tran' + CONVERT(VARCHAR(10), @iCtr)
+	SAVE TRAN @tranName
+	SELECT @tranName TranName
+
 END
 
 SELECT 
@@ -81,8 +88,9 @@ WHERE
 	AND resource_associated_entity_id <> 0
 ORDER BY TableName
 
+
 --WAITFOR DELAY '00:10:00'
---ROLLBACK
---DROP TABLE #locks
+--ROLLBACK TRANSACTION Tran1
+DROP TABLE #locks
 
 SELECT @@TRANCOUNT TranCount
