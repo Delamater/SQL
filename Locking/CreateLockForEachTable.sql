@@ -1,7 +1,18 @@
 USE x3v6
 GO
 -- Checks what locks exist now
-SELECT * FROM sys.dm_tran_locks
+SELECT 
+	resource_type, 
+	DB_NAME(resource_database_id) DbName, 
+	OBJECT_NAME(resource_associated_entity_id) TableName, 
+	request_mode, request_type, request_session_id
+FROM sys.dm_tran_locks 
+WHERE 
+	resource_type = 'OBJECT' 
+	AND resource_database_id = DB_ID() 
+	AND resource_associated_entity_id <> 0
+ORDER BY TableName
+
 
 
 DECLARE 
@@ -44,7 +55,9 @@ WHERE
 	AND c.column_id = 1
 	--AND t.name IN(@TablesToLock)
 	AND CHARINDEX(',' + t.name+ ',', ',' + @TablesToLock + ',') > 0 
+
 SELECT * FROM #locks 
+
 BEGIN TRAN
 --DECLARE 	@iCtr INT, @sql VARCHAR(MAX)
 SET @iCtr = (SELECT MAX(ID) FROM #locks)
@@ -70,6 +83,3 @@ ORDER BY TableName
 --WAITFOR DELAY '00:10:00'
 --ROLLBACK
 --DROP TABLE #locks
-
-
-
