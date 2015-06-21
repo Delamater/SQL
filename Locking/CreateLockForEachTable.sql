@@ -23,7 +23,8 @@ DECLARE
 
 
 SET @LockType = 'TABLOCK'
-SET @TablesToLock = 'AVALNUM,AVALATT'
+--SET @TablesToLock = 'AVALNUM,AVALATT'
+SET @TablesToLock = '%'
 
 IF (SELECT OBJECT_ID('tempdb..#locks')) IS NULL
 BEGIN
@@ -83,3 +84,5 @@ ORDER BY TableName
 --WAITFOR DELAY '00:10:00'
 --ROLLBACK
 --DROP TABLE #locks
+
+SELECT @@TRANCOUNT TranCount
