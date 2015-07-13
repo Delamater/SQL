@@ -22,7 +22,7 @@ SELECT
              WHEN 0      THEN 'system session'
   END         AS [SESSION Type],
   row_count -- AS [ROW COUNT]
-  ,CAST(sqlt.text AS VARCHAR(4000))
+  ,CAST(sqlt.text AS VARCHAR(4000)) SqlText
 FROM sys.dm_db_session_space_usage dsess
       INNER join sys.dm_exec_sessions dmes
             ON  dsess.session_id = dmes.session_id
