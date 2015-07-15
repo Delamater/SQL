@@ -27,7 +27,12 @@ Author:			Bob Delamater
 						returned within the result set													
 					@Rebuild	BIT	
 						- Set this to 1 if you want to execute a rebuild on these indexes				
-						- Set this to 0 if you do not want to execute a rebuild on these indexes		
+						- Set this to 0 if you do not want to execute a rebuild on these indexes
+						- Warning: Rebuilding tables will cause locks. Do not execute a rebuild in
+							situations where concurrency is present. 
+							Concurrency in this context means multiple access requests
+							against the table you are trying to rebuild. This can cause a 
+							block chain.
 					@Reorganize BIT
 						- Set this to 1 if you want to execute a reorganize on these indexes				
 						- Set this to 0 if you want to execute a reorganize on these indexes	
