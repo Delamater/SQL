@@ -48,8 +48,6 @@ Author:			Bob Delamater
 
 					-- Insert into the driver table with any type of range of tables you require 
 					--	(see WHERE clause below)
-					DECLARE  @ObjectIDs AS dbo.ObjectIDs ;
-
 					INSERT INTO @ObjectIDs(ObjectId, SchemaName, TableName)
 					SELECT t.object_id, s.name, t.name
 					FROM sys.tables t
