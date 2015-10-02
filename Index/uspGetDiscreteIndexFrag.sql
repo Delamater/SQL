@@ -72,7 +72,7 @@ Author:			Bob Delamater
 						@PageCount = 0, 
 						@Rebuild = 0, 
 						@Reorganize = 0, 
-						@RebuildHeap = 1, 
+						@RebuildHeap = 0, 
 						@MaxDop = 64
 
 *********************************************************************************************************/
