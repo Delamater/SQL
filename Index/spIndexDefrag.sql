@@ -1,38 +1,39 @@
-IF OBJECT_ID('X3.tsmIndexDefrag', 'U') IS NULL
+IF OBJECT_ID('X3.tsmIndexDefrag') IS NULL
 BEGIN
+	PRINT 'Creating X3.tsmIndexDefrag'
 	CREATE TABLE [X3].[tsmIndexDefrag](
-		[IndexDefragKey] [INT] IDENTITY(1,1) NOT NULL,
-		[AllocUnitTypeDesc] [VARCHAR](64) NULL,
-		[AvgFragInPer] [FLOAT] NULL,
-		[AvgFragSizeInPages] [FLOAT] NULL,
-		[AvgPageSpaceUsedInPer] [FLOAT] NULL,
-		[AvgRecordSizeInBytes] [FLOAT] NULL,
-		[BatchID] [INT] NULL,
-		[Command] [VARCHAR](6000) NULL,
-		[CreatedDate] [SMALLDATETIME] NULL,
-		[DatabaseID] [SMALLINT] NULL,
-		[DatabaseName] [VARCHAR](100) NULL,
-		[ForwardedRecordCount] [INT] NULL,
-		[FragCount] [INT] NULL,
-		[GhostRecordCount] [INT] NULL,
-		[IndexDepth] [TINYINT] NULL,
-		[IndexID] [INT] NULL,
-		[IndexLevel] [TINYINT] NULL,
-		[IndexTypeDesc] [VARCHAR](64) NULL,
-		[IsDefragged] [SMALLINT] NULL,
-		[MaxRecordSizeInBytes] [INT] NULL,
-		[MinRecordSizeInBytes] [INT] NULL,
-		[ObjectID] [INT] NULL,
-		[ObjectName] [VARCHAR](100) NULL,
-		[PageCount] [INT] NULL,
-		[PartitionNo] [INT] NULL,
-		[RecordCount] [INT] NULL,
-		[VersionGhostRecordCount] [INT] NULL,
+		[IndexDefragKey] [int] IDENTITY(1,1) NOT NULL,
+		[AllocUnitTypeDesc] [varchar](64) NULL,
+		[AvgFragInPer] [float] NULL,
+		[AvgFragSizeInPages] [float] NULL,
+		[AvgPageSpaceUsedInPer] [float] NULL,
+		[AvgRecordSizeInBytes] [float] NULL,
+		[BatchID] [int] NULL,
+		[Command] [varchar](6000) NULL,
+		[CreatedDate] [smalldatetime] NULL,
+		[DatabaseID] [smallint] NULL,
+		[DatabaseName] [varchar](100) NULL,
+		[ForwardedRecordCount] [int] NULL,
+		[FragCount] [int] NULL,
+		[GhostRecordCount] [int] NULL,
+		[IndexDepth] [tinyint] NULL,
+		[IndexID] [int] NULL,
+		[IndexLevel] [tinyint] NULL,
+		[IndexTypeDesc] [varchar](64) NULL,
+		[IsDefragged] [smallint] NULL,
+		[MaxRecordSizeInBytes] [int] NULL,
+		[MinRecordSizeInBytes] [int] NULL,
+		[ObjectID] [int] NULL,
+		[ObjectName] [varchar](100) NULL,
+		[PageCount] [int] NULL,
+		[PartitionNo] [int] NULL,
+		[RecordCount] [int] NULL,
+		[VersionGhostRecordCount] [int] NULL,
 	PRIMARY KEY CLUSTERED 
 	(
 		[IndexDefragKey] ASC
 	)WITH (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
-	) ON [PRIMARY]
+	) ON [PRIMARY]	
 
 	ALTER TABLE [X3].[tsmIndexDefrag] ADD  DEFAULT ((0)) FOR [AvgFragInPer]
 	ALTER TABLE [X3].[tsmIndexDefrag] ADD  DEFAULT ((0)) FOR [AvgFragSizeInPages]
@@ -41,55 +42,29 @@ BEGIN
 
 END
 
-IF OBJECT_ID('X3.tsmIndexDefragQueue', 'U') IS NULL
 
+IF OBJECT_ID('X3.tsmIndexDefragQueue') IS NULL
 BEGIN
+	PRINT 'Creating tsmIndexDefragQueue'
 	CREATE TABLE [X3].[tsmIndexDefragQueue](
-		[IndexDefragQueueKey] [INT] IDENTITY(1,1) NOT NULL,
-		[Command] [VARCHAR](6000) NULL,
-		[CreatedDate] [SMALLDATETIME] NULL,
-		[IndexDefragKey] [INT] NULL,
+		[IndexDefragQueueKey] [int] IDENTITY(1,1) NOT NULL,
+		[Command] [varchar](6000) NULL,
+		[CreatedDate] [smalldatetime] NULL,
+		[IndexDefragKey] [int] NULL,
 	PRIMARY KEY CLUSTERED 
 	(
 		[IndexDefragQueueKey] ASC
 	)WITH (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
 	) ON [PRIMARY]
+
 END
+
 GO
 
-
-
-
---********************************************************************************************* 
--- spIndexDefrag - Procedure to defragment the index for given input parameters. It is called
--- from user defined scheduled job or can be called from SQL Server Management Studio.
---
--- Copyright (c) 1995-2009 Sage Software, Inc. All Rights Reserved.
---
--- ********************************************************************************************
-/***************************************************************************************************
-Sample Exec:
-
---when @_Debug = 1, we just print out commands we will run
-Exec [X3].spIndexDefrag
-       @_PageCount = 100,
-       @_AvgFragInPer = 10,
-       @_Debug = 1
-
---when @_Debug = 0, we run for real
-Exec [X3].spIndexDefrag
-       @_PageCount = 100,
-       @_AvgFragInPer = 10,
-       @_Debug = 0
-
-select * from tsmIndexDefrag
-select * from tsmIndexDefragQueue
-
-****************************************************************************************************/
-
-IF EXISTS (SELECT 1 FROM sys.objects WHERE object_id = object_id ( N'[X3].spIndexDefrag') and Type = 'P')
+IF OBJECT_ID('X3.spIndexDefrag') IS NOT NULL
 BEGIN
-	DROP PROCEDURE [X3].spIndexDefrag
+	PRINT 'Recreating spIndexDefrag'
+	DROP PROCEDURE X3.spIndexDefrag
 END
 GO
 
@@ -128,9 +103,9 @@ DECLARE @_TableInfo TABLE
 	MaxLength INT
 )
 
-IF OBJECT_ID('dbo.tsmIndexDefrag', 'U') IS NULL
+IF OBJECT_ID('X3.tsmIndexDefrag', 'U') IS NULL
 BEGIN
-	PRINT 'Table dbo.tsmIndexDefrag is missing. The stored procedure stopped.'
+	PRINT 'Table X3.tsmIndexDefrag is missing. The stored procedure stopped.'
 	RETURN 0
 END
 
@@ -146,8 +121,8 @@ FROM [X3].tsmIndexDefrag WITH (NOLOCK)
 
 
 --Clear out Queue table and reseed identity
-DELETE tsmIndexDefragQueue
-DBCC CHECKIDENT ('tsmIndexDefragQueue', RESEED, 1);
+DELETE X3.tsmIndexDefragQueue
+DBCC CHECKIDENT ('X3.tsmIndexDefragQueue', RESEED, 1);
 
 --*************************************************************************************************
 --If we already have some work still left over, go finish those instead of getting new work order
@@ -171,7 +146,7 @@ BEGIN
        Page_Count,Avg_Page_Space_Used_In_Percent,Record_Count,Ghost_Record_Count,Version_Ghost_Record_Count,
        Min_Record_Size_In_Bytes,Max_Record_Size_In_Bytes,Avg_Record_Size_In_Bytes,Forwarded_Record_Count,
 		0
-	FROM sys.dm_db_index_physical_stats (DB_ID(), NULL, NULL, NULL, 'DETAILED') 
+	FROM sys.dm_db_index_physical_stats(DB_ID(), NULL, NULL, NULL, 'DETAILED') 
 	WHERE page_count > @_PageCount 
        AND avg_fragmentation_in_percent > @_AvgFragInPer
        AND Index_ID > 0
@@ -217,13 +192,13 @@ BEGIN
 			--******************************************************
 			INSERT INTO @_TableInfo(TableName,ColumnName,ColumnDataType,MaxLength)
 			SELECT	o.name as TableName
-					,c.name as ColumnName
-					,t.name as ColumnDataType
-					,c.max_length		
+					,c.Name as ColumnName
+					,t.Name as ColumnDataType
+					,c.Max_Length		
 			FROM sys.objects o WITH (NOLOCK)
 			INNER JOIN sys.columns c WITH (NOLOCK) ON c.object_id = o.object_id
 			INNER JOIN sys.types t WITH (NOLOCK) ON t.system_type_id = c.system_type_id
-			WHERE o.object_id= @_ObjectID 
+			WHERE o.object_id = @_ObjectID
 			AND t.name in('image', 'text', 'ntext', 'xml', 'varchar', 'nvarchar', 'varbinary')
 
 			SET @_HasBlobData = 0
@@ -264,7 +239,7 @@ BEGIN
 				SET @_SQLCommand = @_SQLCommand + N' PARTITION=' + CAST(@_PartitionNo AS VARCHAR(10))
 			END
 
-		INSERT INTO tsmIndexDefragQueue(IndexDefragKey,Command) SELECT @_IndexDefragKey,@_SQLCommand
+		INSERT INTO X3.tsmIndexDefragQueue(IndexDefragKey,Command) SELECT @_IndexDefragKey,@_SQLCommand
 
        END
 
@@ -274,10 +249,10 @@ END
 --********************************************************
 --Update tsmIndexDefrag with the commands in the Queue
 --********************************************************
-UPDATE tsmIndexDefrag
+UPDATE X3.tsmIndexDefrag
 SET Command = B.Command
-FROM tsmIndexDefrag A
-INNER JOIN tsmIndexDefragQueue B
+FROM X3.tsmIndexDefrag A
+INNER JOIN X3.tsmIndexDefragQueue B
 ON A.IndexDefragKey = B.IndexDefragKey
 
 --********************************************************
@@ -285,7 +260,7 @@ ON A.IndexDefragKey = B.IndexDefragKey
 --********************************************************
 IF (@_Debug = 1)
 BEGIN
-	SELECT * FROM tsmIndexDefragQueue
+	SELECT * FROM X3.tsmIndexDefragQueue
 END
 --************************************************************************
 --if we are not debugging, then loop through to execute all commands
@@ -294,12 +269,12 @@ END
 --************************************************************************
 ELSE
 BEGIN
-	SELECT @_KeyCounter = MIN(IndexDefragQueueKey), @_Max = MAX(IndexDefragQueueKey) FROM dbo.tsmIndexDefragQueue WITH (NOLOCK)
+	SELECT @_KeyCounter = MIN(IndexDefragQueueKey), @_Max = MAX(IndexDefragQueueKey) FROM X3.tsmIndexDefragQueue WITH (NOLOCK)
 	
 	WHILE (@_KeyCounter <= @_Max)
 	BEGIN
 		SELECT @_IndexDefragKey = IndexDefragKey, @_SQLCommand = Command 
-		FROM dbo.tsmIndexDefragQueue WITH (NOLOCK) 
+		FROM X3.tsmIndexDefragQueue WITH (NOLOCK) 
 		WHERE IndexDefragQueueKey = @_KeyCounter
 
 		IF (ISNULL(@_SQLCommand,'') <> '')
@@ -315,7 +290,7 @@ BEGIN
 				SET IsDefragged = 1
 				WHERE IndexDefragKey = @_IndexDefragKey
 
-				DELETE tsmIndexDefragQueue WHERE IndexDefragQueueKey = @_KeyCounter				
+				DELETE X3.tsmIndexDefragQueue WHERE IndexDefragQueueKey = @_KeyCounter				
 			END
 		END
 
@@ -323,5 +298,5 @@ BEGIN
 	END
 END
 
-GO
+
 
