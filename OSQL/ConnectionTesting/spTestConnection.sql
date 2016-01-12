@@ -1,11 +1,12 @@
-IF OBJECT_ID('dbo.spTestConnection') IS NOT NULL
-BEGIN
-	PRINT 'Recreating stored procedure dbo.spTestConnection'
-	DROP PROCEDURE dbo.spTestConnection 
-END
+USE [TestDB]
+GO
+/****** Object:  StoredProcedure [dbo].[spTestConnection]    Script Date: 1/12/2016 12:29:40 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
 GO
 
-CREATE PROCEDURE dbo.spTestConnection AS
+ALTER PROCEDURE [dbo].[spTestConnection] AS
 
 IF OBJECT_ID('dbo.ConnectionTest') IS NULL
 BEGIN
@@ -17,3 +18,4 @@ BEGIN
 END
 
 INSERT INTO dbo.ConnectionTest(TestTime) VALUES(GETDATE())
+SELECT TOP 1 * FROM dbo.ConnectionTest ORDER BY ID DESC
