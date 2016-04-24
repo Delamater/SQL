@@ -20,7 +20,7 @@ FROM Person
 	CROSS JOIN sys.columns 
 	CROSS JOIN sys.objects
 
-sp_spaceused SampleData
+--sp_spaceused SampleData
 --CREATE UNIQUE NONCLUSTERED INDEX idx1 ON SampleData(ID, SocialSecurity, Notes, StateID)
 --CREATE UNIQUE Clustered INDEX idx2 ON SampleData(ID, SocialSecurity, Notes, StateID)
 --DROP TABLE SampleData
