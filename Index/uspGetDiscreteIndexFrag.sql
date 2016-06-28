@@ -178,7 +178,7 @@ END
 		ObjectName					VARCHAR(MAX),
 		PartitionNumber				INT,
 		IndexID						INT,
-		IndexName					SYSNAME,
+		IndexName					SYSNAME NULL,
 		IndexTypeDesc				VARCHAR(MAX),
 		AllocUnitTypeDesc			VARCHAR(MAX),
 		IndexDepth					SMALLINT,
@@ -292,7 +292,7 @@ END
 				--	ON t.object_id = i.object_id
 			WHERE idx.page_count > @PageCount 
 				AND idx.avg_fragmentation_in_percent > @FragPercent
-				AND idx.index_id > 0
+				--AND idx.index_id > 0
 			ORDER BY idx.avg_fragmentation_in_percent desc
 		END
 		
@@ -307,7 +307,7 @@ END
 		DbName, ObjectID, SchemaName, ObjectName, 
 		TableRowCount, IndexRecordCount, [PageCount], 
 		IndexTypeDesc, IndexID, IndexName, IndexDepth, IndexDepthLevel,
-		AvgFragPercent
+		AvgFragPercent, ForwardedRecordCount
 		
 	FROM #FragOutput 
 	ORDER BY SchemaName, OBJECT_NAME(ObjectID), IndexName, IndexDepth, IndexDepthLevel
