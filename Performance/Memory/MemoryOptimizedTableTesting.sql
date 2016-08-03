@@ -126,6 +126,21 @@ ROLLBACK
 
 GO
 
+IF OBJECT_ID('dbo.DoDeletesSetBased', 'P') IS NOT NULL
+BEGIN
+	PRINT 'Recreating Procedure: dbo.DoDeletesSetBased'
+	DROP PROCEDURE dbo.DoDeletesSetBased
+END
+GO
+CREATE PROCEDURE dbo.DoDeletesSetBased AS
+SET NOCOUNT ON
+
+BEGIN TRAN
+	DELETE dbo.SampleData 
+ROLLBACK
+
+GO
+
 IF OBJECT_ID('dbo.DoUpdates', 'P') IS NOT NULL
 BEGIN
 	PRINT 'Recreating Procedure: dbo.DoUpdates'
@@ -148,6 +163,22 @@ WHILE @i <= (SELECT MAX(ID) FROM dbo.SampleData)
 
 		SET @i += 1	
 	END
+ROLLBACK	
+GO
+
+IF OBJECT_ID('dbo.DoUpdatesSetBased', 'P') IS NOT NULL
+BEGIN
+	PRINT 'Recreating Procedure: dbo.DoUpdatesSetBased'
+	DROP PROCEDURE dbo.DoUpdates
+END
+GO
+
+CREATE PROCEDURE dbo.DoUpdatesSetBased AS
+SET NOCOUNT ON
+
+BEGIN TRAN
+	UPDATE dbo.SampleData
+	SET SocialSecurity = SocialSecurity * -1
 ROLLBACK	
 GO
 
@@ -259,6 +290,15 @@ SET @EndTime = GETDATE()
 INSERT INTO dbo.MemoryOptimizedTableResults(Notes, StartTime, EndTime, ParamValue, BatchExecutionTime, BatchID, IsOptimized) 
 VALUES('Delete', @StartTime, @EndTime, @LoopCount, @BatchExecutionTime, @BatchID, @IsOptimized)
 
+-- DoDeletesSetBased
+SET @StartTime = GETDATE()
+exec dbo.DoDeletesSetBased
+SET @EndTime = GETDATE()
+
+INSERT INTO dbo.MemoryOptimizedTableResults(Notes, StartTime, EndTime, ParamValue, BatchExecutionTime, BatchID, IsOptimized) 
+VALUES('Delete: Set Based', @StartTime, @EndTime, @LoopCount, @BatchExecutionTime, @BatchID, @IsOptimized)
+
+
 -- DoUpdates
 SET @StartTime = GETDATE()
 exec dbo.DoUpdates 
@@ -266,6 +306,14 @@ SET @EndTime = GETDATE()
 
 INSERT INTO dbo.MemoryOptimizedTableResults(Notes, StartTime, EndTime, ParamValue, BatchExecutionTime, BatchID, IsOptimized) 
 VALUES('Update', @StartTime, @EndTime, @LoopCount, @BatchExecutionTime, @BatchID, @IsOptimized)
+
+-- DoUpdatesSetBased
+SET @StartTime = GETDATE()
+exec dbo.DoUpdatesSetBased
+SET @EndTime = GETDATE()
+
+INSERT INTO dbo.MemoryOptimizedTableResults(Notes, StartTime, EndTime, ParamValue, BatchExecutionTime, BatchID, IsOptimized) 
+VALUES('Delete', @StartTime, @EndTime, @LoopCount, @BatchExecutionTime, @BatchID, @IsOptimized)
 
 
 -- Report Results
