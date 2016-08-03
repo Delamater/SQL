@@ -6,11 +6,10 @@ END
 GO
 
 
-
 /* You must have Memory optimized tables set up like the following:
-ALTER DATABASE Testing ADD FILEGROUP Testing_Mod CONTAINS MEMORY_OPTIMIZED_DATA
-ALTER DATABASE Testing ADD FILE(name='Testing_mod1', filename='E:\Program Files\Microsoft SQL Server\MSSQL12.X32014\MSSQL\DATA\Testing_mod1') TO FILEGROUP Testing_Mod
-ALTER DATABASE Testing SET MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT=ON
+ALTER DATABASE TestDB ADD FILEGROUP Testing_Mod CONTAINS MEMORY_OPTIMIZED_DATA
+ALTER DATABASE TestDB ADD FILE(name='Testing_mod1', filename='F:\data\SQL\MSSQL12.MSSQLSERVER\MSSQL\DATA\Testing_mod1') TO FILEGROUP Testing_Mod
+ALTER DATABASE TestDB SET MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT=ON
 */
 
 
@@ -111,7 +110,7 @@ BEGIN
 	DROP PROCEDURE dbo.DoDeletes
 END
 GO
-CREATE PROCEDURE dbo.DoDeletes @LoopCount INT AS
+CREATE PROCEDURE dbo.DoDeletes AS
 SET NOCOUNT ON
 
 DECLARE @i INT = 1
@@ -134,7 +133,7 @@ BEGIN
 END
 GO
 
-CREATE PROCEDURE dbo.DoUpdates @LoopCount INT AS
+CREATE PROCEDURE dbo.DoUpdates AS
 SET NOCOUNT ON
 
 DECLARE @i INT = 1
@@ -274,5 +273,4 @@ SELECT ID, IsOptimized, Notes, DATEDIFF(ms, StartTime, EndTime) RunTimeMilliseco
 FROM dbo.MemoryOptimizedTableResults
 
 GO
-
 
