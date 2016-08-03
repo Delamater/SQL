@@ -253,7 +253,7 @@ VALUES('Select', @StartTime, @EndTime, @LoopCount, @BatchExecutionTime, @BatchID
 
 -- DoDeletes
 SET @StartTime = GETDATE()
-exec dbo.DoDeletes @LoopCount
+exec dbo.DoDeletes 
 SET @EndTime = GETDATE()
 
 INSERT INTO dbo.MemoryOptimizedTableResults(Notes, StartTime, EndTime, ParamValue, BatchExecutionTime, BatchID, IsOptimized) 
@@ -261,7 +261,7 @@ VALUES('Delete', @StartTime, @EndTime, @LoopCount, @BatchExecutionTime, @BatchID
 
 -- DoUpdates
 SET @StartTime = GETDATE()
-exec dbo.DoUpdates @LoopCount
+exec dbo.DoUpdates 
 SET @EndTime = GETDATE()
 
 INSERT INTO dbo.MemoryOptimizedTableResults(Notes, StartTime, EndTime, ParamValue, BatchExecutionTime, BatchID, IsOptimized) 
