@@ -23,6 +23,9 @@ GO
 CREATE PROCEDURE dbo.uspDoInsertsSetBased @RowsToInsert INT
 AS
 
+SET NOCOUNT ON
+
+
 DECLARE @strSQL NVARCHAR(MAX)
 
 SET @strSQL = 
@@ -55,6 +58,8 @@ GO
 CREATE PROCEDURE dbo.uspDoInsertsIteratively @LoopCount INT
 AS
 
+SET NOCOUNT ON
+
 DECLARE @i INT
 SET @i = 1
 
@@ -85,8 +90,17 @@ BEGIN
 END
 GO
 CREATE PROCEDURE dbo.DoSelects AS
+SET NOCOUNT ON
 
-SELECT * FROM dbo.SampleData
+DECLARE @i INT, @throwResultsAway INT
+SET @i = 1
+WHILE @i <= (SELECT MAX(ID) FROM dbo.SampleData)
+BEGIN
+	SET @throwResultsAway = (select ID from dbo.SampleData WHERE ID = @i)
+	SET @i+=1
+END
+
+
 
 GO
 
@@ -98,20 +112,18 @@ BEGIN
 END
 GO
 CREATE PROCEDURE dbo.DoDeletes @LoopCount INT AS
+SET NOCOUNT ON
 
 DECLARE @i INT = 1
-WHILE @i <= @LoopCount
+BEGIN TRAN
+	WHILE @i <= (SELECT MAX(ID) FROM dbo.SampleData)
 	BEGIN
-	-- Delete every other row, then roll back the transaction
-	BEGIN TRAN
-
-	DELETE dbo.SampleData
-	WHERE ID % 2 = 1
-
-	ROLLBACK
-	SET @i+=1
-END
-
+		-- Delete every other row, then roll back the transaction
+		DELETE dbo.SampleData WHERE ID = @i
+	
+		SET @i+=1
+	END
+ROLLBACK
 
 GO
 
@@ -123,18 +135,22 @@ END
 GO
 
 CREATE PROCEDURE dbo.DoUpdates @LoopCount INT AS
+SET NOCOUNT ON
+
 DECLARE @i INT = 1
-WHILE @i <= @LoopCount
-BEGIN
-	BEGIN TRAN
-	UPDATE dbo.SampleData
-	SET SocialSecurity = SocialSecurity * -1
 
-	ROLLBACK	
+BEGIN TRAN
+WHILE @i <= (SELECT MAX(ID) FROM dbo.SampleData)
+	BEGIN
+	
+		UPDATE dbo.SampleData
+		SET SocialSecurity = SocialSecurity * -1
+		WHERE ID = @i
 
-	SET @i += 1	
-END
-
+		SET @i += 1	
+	END
+ROLLBACK	
+GO
 
 IF OBJECT_ID('dbo.uspTestMemoryOptimizedTables', 'P') IS NOT NULL
 BEGIN
@@ -144,6 +160,8 @@ END
 GO
 CREATE PROCEDURE dbo.uspTestMemoryOptimizedTables @IsOptimized BIT, @LoopCount INT
 AS
+
+SET NOCOUNT ON
 
 -- Set up SampleData table
 IF OBJECT_ID('dbo.SampleData', 'U') IS NOT NULL
@@ -213,7 +231,7 @@ END
 --VALUES('Inserts: Iteratively', @StartTime, @EndTime, @LoopCount, @BatchExecutionTime, @BatchID)
 
 
-DELETE dbo.SampleData
+--DELETE dbo.SampleData
 
 -- Set Based Inserts
 SET @StartTime = GETDATE()
@@ -244,7 +262,7 @@ VALUES('Delete', @StartTime, @EndTime, @LoopCount, @BatchExecutionTime, @BatchID
 
 -- DoUpdates
 SET @StartTime = GETDATE()
-exec dbo.DoDeletes @LoopCount
+exec dbo.DoUpdates @LoopCount
 SET @EndTime = GETDATE()
 
 INSERT INTO dbo.MemoryOptimizedTableResults(Notes, StartTime, EndTime, ParamValue, BatchExecutionTime, BatchID, IsOptimized) 
@@ -256,3 +274,5 @@ SELECT ID, IsOptimized, Notes, DATEDIFF(ms, StartTime, EndTime) RunTimeMilliseco
 FROM dbo.MemoryOptimizedTableResults
 
 GO
+
+
