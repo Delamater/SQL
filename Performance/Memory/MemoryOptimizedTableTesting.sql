@@ -169,7 +169,7 @@ GO
 IF OBJECT_ID('dbo.DoUpdatesSetBased', 'P') IS NOT NULL
 BEGIN
 	PRINT 'Recreating Procedure: dbo.DoUpdatesSetBased'
-	DROP PROCEDURE dbo.DoUpdates
+	DROP PROCEDURE dbo.DoUpdatesSetBased
 END
 GO
 
@@ -313,7 +313,7 @@ exec dbo.DoUpdatesSetBased
 SET @EndTime = GETDATE()
 
 INSERT INTO dbo.MemoryOptimizedTableResults(Notes, StartTime, EndTime, ParamValue, BatchExecutionTime, BatchID, IsOptimized) 
-VALUES('Delete', @StartTime, @EndTime, @LoopCount, @BatchExecutionTime, @BatchID, @IsOptimized)
+VALUES('Update: Set Based', @StartTime, @EndTime, @LoopCount, @BatchExecutionTime, @BatchID, @IsOptimized)
 
 
 -- Report Results
