@@ -28,11 +28,11 @@ FROM sys.tables t
 		ON s.schema_id = t.schema_id
 		AND t.name IN
 		(
-			'BPCUSTOMER'
+			'BPCUSTOMER', 'CONTACT', 'CONTACTCRM'
 		)
 WHERE s.name = 'SEED'
 
-EXEC uspFindNonAsciiFields @ObjectIDs
+EXEC uspFindNonAsciiFields @ObjectIDs, @MinAscii = 31, @MaxAscii = 126
 
 *********************************************************************************************************/
 
@@ -63,7 +63,7 @@ END
 GO
 
 /****************************** Create Function: IsContainsNonAscii ****************************/
-CREATE FUNCTION dbo.IsContainsNonAscii ( @string nvarchar(max) ) 
+CREATE FUNCTION dbo.IsContainsNonAscii ( @string nvarchar(max), @minAscii INT, @maxAscii INT ) 
 RETURNS BIT AS 
 BEGIN
 
@@ -74,7 +74,7 @@ BEGIN
 	WHILE @pos < DATALENGTH(@string)
 	BEGIN
 		SELECT @char = SUBSTRING(@string, @pos, 1)
-		IF ASCII(@char) < 32 or ASCII(@char) > 126 
+		IF ASCII(@char) <= @minAscii  or ASCII(@char) >= @maxAscii 
 			BEGIN
 				SELECT @retval = 1;
 				RETURN @retval;
@@ -101,7 +101,7 @@ CREATE TYPE dbo.ObjectIds AS TABLE
 GO
 
 /****************************** Stored Procedure Creation ****************************/
-CREATE PROCEDURE dbo.uspFindNonAsciiFields @Objs ObjectIds READONLY AS
+CREATE PROCEDURE dbo.uspFindNonAsciiFields @Objs ObjectIds READONLY, @MinAscii INT = 31, @MaxAscii INT = 127 AS
 
 SET NOCOUNT ON
 
@@ -169,7 +169,7 @@ SET NOCOUNT ON
 			'INSERT INTO dbo.AsciiSearchResults(DatabaseName, SchemaName, TableName, ColumnName, TableRowID, ColumnValue)
 			SELECT DB_NAME(), ''SEED'', ''' + @TableName + ''', ''' + @ColumnName + ''', ROWID, ' + @ColumnName + '
 			FROM SEED.' + @TableName + '
-			WHERE dbo.IsContainsNonAscii (' + @ColumnName + ') = 1
+			WHERE dbo.IsContainsNonAscii (' + @ColumnName + ', ' + CAST(@MinAscii AS VARCHAR(3)) + ', ' + CAST(@MaxAscii AS VARCHAR(3)) + ') = 1
 			ORDER BY ' + @ColumnName
 
 			EXEC(@tsql)
