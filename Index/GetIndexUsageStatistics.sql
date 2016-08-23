@@ -39,4 +39,4 @@ WHERE
    [sObj].[type] IN ('U','V')         -- Look in Tables & Views
    AND [sObj].[is_ms_shipped] = 0x0   -- Exclude System Generated Objects
    AND [sIdx].[is_disabled] = 0x0     -- Exclude Disabled Indexes
-	
+ORDER BY [ServerName], [DatabaseName], [SchemaName], [ObjectName], [IndexID]
