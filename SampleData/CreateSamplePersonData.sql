@@ -8,7 +8,7 @@ CREATE TABLE SampleData
 	WageRate			DECIMAL(18,2),
 	WorkHoursPerWeek	DECIMAL(18,2),
 	WeeklyPay AS WageRate * WorkHoursPerWeek PERSISTED
-)
+) WITH (DATA_COMPRESSION = ROW)
 GO
 WITH
 	Person AS (SELECT CHECKSUM(NEWID()) AS SocialSecurity, NEWID() AS Notes),
@@ -26,6 +26,11 @@ FROM Person
 	CROSS JOIN sys.columns 
 	CROSS JOIN sys.objects
 	CROSS JOIN sys.tables
+
+--sp_spaceused SampleData
+--CREATE UNIQUE NONCLUSTERED INDEX idx1 ON SampleData(ID, SocialSecurity, Notes, StateID)
+--CREATE UNIQUE Clustered INDEX idx2 ON SampleData(ID, SocialSecurity, Notes, StateID)
+--DROP TABLE SampleData
 
 --sp_spaceused SampleData
 --CREATE UNIQUE NONCLUSTERED INDEX idx1 ON SampleData(ID, SocialSecurity, Notes, StateID)
