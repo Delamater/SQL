@@ -3,7 +3,7 @@ obj.[name],
 i.[name],
 i.[type_desc],
 count(*)AS Buffered_Page_Count ,
-count(*) * 8192 / (1024 * 1024) as Buffer_MB
+count(*) * CAST(8192 AS BIGINT) / CAST((1024 * 1024) AS BIGINT) as Buffer_MB
     -- ,obj.name ,obj.index_id, i.[name]
 FROM sys.dm_os_buffer_descriptors AS bd 
     INNER JOIN 
