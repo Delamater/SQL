@@ -33,7 +33,7 @@ Parameters:			@Schema: Name of the schema inside SQL Server to consider. Valid v
 
 Example Call:		Note: Take care to ensure the table names be case sensitive, should your database be case sensitive
 					DECLARE @Range VARCHAR(MAX) = '''STOCK'', ''ITMMVT'', ''CPTANALIN'', ''AVALNUM'', ''STOLOTFCY''' 
-					EXEC dbo.spSetLockEscalation @Schema = 'ECCPROD', @DelimittedRangeOfTables = @Range, @State = 'ON', @DiagMode = 'ON'
+					EXEC dbo.spSetLockEscalation @Schema = 'SEED', @DelimittedRangeOfTables = @Range, @State = 'ON', @DiagMode = 'ON'
 
 					
 */
