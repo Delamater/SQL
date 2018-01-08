@@ -37,3 +37,9 @@ FROM (SELECT LEFT(UPPER(mf.physical_name), 2) AS Drive, SUM(num_of_reads) AS num
 	  CROSS APPLY sys.dm_os_volume_stats(mf.database_id, mf.[file_id]) AS vs 
       GROUP BY LEFT(UPPER(mf.physical_name), 2), vs.volume_mount_point) AS tab
 ORDER BY [Overall Latency] OPTION (RECOMPILE);
+
+
+-- Shows you the drive-level latency for reads and writes, in milliseconds
+-- Latency above 30-40ms is usually a problem
+-- These latency numbers include all file activity against all SQL Server 
+-- database files on each drive since SQL Server was last started
