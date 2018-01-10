@@ -2,6 +2,7 @@
 Queries that recently regressed in performance (comparing different point in time)? 
 The following query example returns all queries for which execution time doubled in last 48 hours due to a plan choice change. 
 Query compares all runtime stat intervals side by side.
+Ordered By Delta DESC
 */
 SELECT   
     qt.query_sql_text,   
@@ -12,6 +13,7 @@ SELECT
     p1.plan_id AS plan_1,   
     rs1.avg_duration AS avg_duration_1,   
     rs2.avg_duration AS avg_duration_2,  
+	rs2.avg_duration - rs1.avg_duration AS Delta,
     p2.plan_id AS plan_2,   
     rsi2.start_time AS interval_2,   
     rs2.runtime_stats_id AS runtime_stats_id_2  
@@ -34,4 +36,4 @@ WHERE rsi1.start_time > DATEADD(hour, -48, GETUTCDATE())
     AND rsi2.start_time > rsi1.start_time   
     AND p1.plan_id <> p2.plan_id  
     AND rs2.avg_duration > 2*rs1.avg_duration  
-ORDER BY q.query_id, rsi1.start_time, rsi2.start_time;
+ORDER BY q.query_id, rs2.avg_duration - rs1.avg_duration DESC --rsi1.start_time, rsi2.start_time;
