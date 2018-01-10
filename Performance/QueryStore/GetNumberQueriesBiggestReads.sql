@@ -1,4 +1,4 @@
---The number of queries that had the biggest average physical IO reads in last 24 hours, with corresponding average row count and execution count?
+--The number of queries that had the biggest average physical IO reads in last 24 hours, with corresponding average row count and execution count
 SELECT TOP 10 rs.avg_physical_io_reads, qt.query_sql_text,   
     q.query_id, qt.query_text_id, p.plan_id, rs.runtime_stats_id,   
     rsi.start_time, rsi.end_time, rs.avg_rowcount, rs.count_executions  
