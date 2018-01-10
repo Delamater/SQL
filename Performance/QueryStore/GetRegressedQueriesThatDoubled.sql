@@ -12,8 +12,8 @@ SELECT
     rsi1.start_time AS interval_1,   
     p1.plan_id AS plan_1,   
     rs1.avg_duration AS avg_duration_1,   
-    rs2.avg_duration AS avg_duration_2,  
-	rs2.avg_duration - rs1.avg_duration AS Delta,
+    rs2.avg_duration AS avg_duration_2,
+    rs2.avg_duration - rs1.avg_duration AS Delta,
     p2.plan_id AS plan_2,   
     rsi2.start_time AS interval_2,   
     rs2.runtime_stats_id AS runtime_stats_id_2  
