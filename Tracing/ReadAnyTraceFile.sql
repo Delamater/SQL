@@ -3,5 +3,5 @@
 DECLARE @filPath VARCHAR(255)
 SET @filPath = '<File Path, VARCHAR(255), C:\temp\mytrace.trc>'
 
-SELECT *
+SELECT IDENTITY(int, 1, 1) AS RowNumber, *
 FROM fn_trace_gettable(@filPath, DEFAULT)
