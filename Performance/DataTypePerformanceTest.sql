@@ -1,6 +1,6 @@
 SET NOCOUNT ON
 DECLARE @Limit BIGINT
-SET @Limit = 10000
+SET @Limit = 20000
 
 IF object_id('dbo.t1') IS NOT NULL
 BEGIN 
@@ -96,11 +96,11 @@ SELECT
 	DATEDIFF(ms,@StartUpdateTime, @EndUpdateTime) AS UpdateDuration_ms,
 	DATEDIFF(ms,@StartDeleteTime, @EndDeleteTime) AS DeleteDuration_ms;
 
-SELECT * from @InsertSpaceUsed
+SELECT *, 'Insert' AS Type from @InsertSpaceUsed
 UNION ALL
-SELECT * from @UpdateSpaceUsed
+SELECT *, 'Insert' AS Type from @UpdateSpaceUsed
 UNION ALL
-SELECT * from @DeleteSpaceUsed
+SELECT *, 'Insert' AS Type from @DeleteSpaceUsed
 
 -- Cleanup
 DROP SEQUENCE dbo.Num1;
