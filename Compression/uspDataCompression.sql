@@ -74,6 +74,7 @@ FROM sys.tables t
 	INNER JOIN sys.schemas s
 		ON t.schema_id = s.schema_id
 WHERE s.name = @SchemaName 
+ORDER BY s.name, t.name
 
 
 DECLARE @TableName SYSNAME
