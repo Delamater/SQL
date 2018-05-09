@@ -33,7 +33,7 @@ Sample Query Against Results:
 	FROM cte
 ******************************************************************************************************************/
 CREATE PROCEDURE uspDataCompression (@CompressionType VARCHAR(10), @Compress BIT, @SchemaName SYSNAME) AS
-
+SET NOCOUNT ON
 /*** Table Set Up *********************************************************/
 IF OBJECT_ID('dbo.CompressionFacts') IS NULL
 BEGIN 
