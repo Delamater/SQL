@@ -94,9 +94,9 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		SET @sqlstmt = 'ALTER TABLE [' +  @SchemaName + '].[' + @TableName + ' REBUILD PARTITION = ALL WITH (DATA_COMPRESSION = ' + @CompressionType
-		--exec(@sqlstmt)
+		SET @sqlstmt = 'ALTER TABLE [' +  @SchemaName + '].[' + @TableName + '] REBUILD PARTITION = ALL WITH (DATA_COMPRESSION = ' + @CompressionType + ')'
 		PRINT @sqlstmt
+		exec(@sqlstmt)
 	END
 	
 	FETCH NEXT FROM AllTables INTO @TableName
