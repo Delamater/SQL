@@ -87,7 +87,7 @@ BEGIN
 	
 	IF @Compress = 0
 	BEGIN
-		PRINT 'Checking: ' + CAST(@TableName AS VARHCHAR(MAX))
+		PRINT 'Checking: ' + CAST(@TableName AS VARCHAR(MAX))
 		INSERT INTO @tmp
 		exec sys.sp_estimate_data_compression_savings  @SchemaName, @TableName,NULL,1,@CompressionType
 	END
