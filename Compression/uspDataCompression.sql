@@ -17,7 +17,7 @@ Parameters:
 	@CompressionType: Valid values are "ROW", "PAGE" and "NONE"
 	@Compress: 
 		Set to 0 if you want to log the estimate into the dbo.CompressionFacts table. 
-		Set to 1 if you want to compress
+		Set to 1 if you want to compress. If you are trying to set compression to NONE, you must also set @Compress = 1
 	@SchemaName: The selected schema you want to apply the compression towards
 
 Execute Example:
