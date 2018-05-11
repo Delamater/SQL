@@ -1,8 +1,9 @@
-IF OBJECT_ID('uspDataCompression') IS NOT NULL
-BEGIN
-	DROP PROCEDURE uspDataCompression
-	PRINT 'Dropping procedure uspDataCompression'
-END
+USE [sagex3]
+GO
+/****** Object:  StoredProcedure [dbo].[uspDataCompression]    Script Date: 5/11/2018 4:42:49 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
 GO
 
 /*******************************************************************************************************************
@@ -11,6 +12,13 @@ Date: 05/09/2018
 Description:
  Estimate requested space savings of entire database for a particular compression type. 
  Store the results into a permentant table which you can query
+
+Parameters:
+	@CompressionType: Valid values are "ROW", "PAGE" and "NONE"
+	@Compress: 
+		Set to 0 if you want to log the estimate into the dbo.CompressionFacts table. 
+		Set to 1 if you want to compress
+	@SchemaName: The selected schema you want to apply the compression towards
 
 Execute Example:
 	exec uspDataCompression @CompressionType = 'ROW', @Compress = 0, @SchemaName = 'SEED'
@@ -32,7 +40,7 @@ Sample Query Against Results:
 		*
 	FROM cte
 ******************************************************************************************************************/
-CREATE PROCEDURE uspDataCompression (@CompressionType VARCHAR(10), @Compress BIT, @SchemaName SYSNAME) AS
+ALTER PROCEDURE [dbo].[uspDataCompression] (@CompressionType VARCHAR(10), @Compress BIT, @SchemaName SYSNAME) AS
 SET NOCOUNT ON
 /*** Table Set Up *********************************************************/
 IF OBJECT_ID('dbo.CompressionFacts') IS NULL
