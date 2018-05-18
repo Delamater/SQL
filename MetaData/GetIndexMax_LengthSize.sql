@@ -1,6 +1,8 @@
 -- Get sum of max_length of all indexes or a certain table
 SELECT 
-	s.name, t.name, i.name, 
+	s.name SchemaName, 
+	t.name TableName, 
+	i.name IndexName, 
 	--c.name, 
 	SUM(c.max_length) SumMaxLength, 
 	COUNT(c.name) CountOfColumns
