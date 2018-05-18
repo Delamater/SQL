@@ -1,11 +1,11 @@
 -- Get sum of max_length of all indexes or a certain table
 SELECT 
-	s.name SchemaName, 
-	t.name TableName, 
-	i.name IndexName, 
-	--c.name, 
-	SUM(c.max_length) SumMaxLength, 
-	COUNT(c.name) CountOfColumns
+	s.name Schema_Name, 
+	t.name Table_Name, 
+	i.name Index_Name, 
+	SUM(c.max_length) Sum_Max_Length, 
+	900 AS Max_Index_Length,
+	COUNT(c.name) Count_Of_Columns_In_Index
 FROM sys.tables t
 	INNER JOIN sys.schemas s
 		ON t.schema_id = s.schema_id
