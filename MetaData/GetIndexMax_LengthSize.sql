@@ -1,8 +1,9 @@
--- Get sum of max_length of all indexes for a certain table
+-- Get sum of max_length of all indexes or a certain table
 SELECT 
 	s.name, t.name, i.name, 
 	--c.name, 
-	SUM(c.max_length), COUNT(c.name)
+	SUM(c.max_length) SumMaxLength, 
+	COUNT(c.name) CountOfColumns
 FROM sys.tables t
 	INNER JOIN sys.schemas s
 		ON t.schema_id = s.schema_id
@@ -16,10 +17,9 @@ FROM sys.tables t
 		AND ic.object_id = c.object_id
 WHERE 
 	s.name = 'X3PERF' 
-	AND t.name = 'SORDER'
-	--AND i.name LIKE 'G%0'
+	--AND t.name = 'SORDER'
 GROUP BY s.name, t.name, i.name
 ORDER BY 
-	SUM(c.max_length) ASC
+	SUM(c.max_length) DESC
 	,t.name
 	--COUNT(c.name) DESC
