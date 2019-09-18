@@ -10,13 +10,18 @@ This example will:
 
 
 SET NOCOUNT ON
-CREATE TABLE dbo.tmp(ID INT IDENTITY(1,1), FNAME NVARCHAR(50) NULL, LNAME NVARCHAR(MAX));
+IF OBJECT_ID('dbo.tmpLockExample','u') IS NOT NULL
+BEGIN 
+	PRINT 'Dropping dbo.tmpLockExample'
+	DROP TABLE dbo.tmpLockExample
+END
+CREATE TABLE dbo.tmpLockExample(ID INT IDENTITY(1,1), FNAME NVARCHAR(50) NULL, LNAME NVARCHAR(MAX));
 GO
-INSERT INTO dbo.tmp(FNAME,LNAME) SELECT CAST(NEWID() AS NVARCHAR(50)), space(10000)
+INSERT INTO dbo.tmpLockExample(FNAME,LNAME) SELECT CAST(NEWID() AS NVARCHAR(50)), space(10000)
 GO 10000
 
-CREATE CLUSTERED INDEX clsID ON dbo.tmp(ID)
-CREATE NONCLUSTERED INDEX xCovering ON dbo.tmp(ID) INCLUDE(FNAME,LNAME)
+CREATE CLUSTERED INDEX clsID ON dbo.tmpLockExample(ID)
+CREATE NONCLUSTERED INDEX xCovering ON dbo.tmpLockExample(ID) INCLUDE(FNAME,LNAME)
 
 -- Check to see the number of pages 
 SELECT 
@@ -27,11 +32,11 @@ SELECT
 	index_level, 
 	page_count,
 	record_count
-FROM sys.dm_db_index_physical_stats(db_id(), object_id('dbo.tmp'),null,null,'DETAILED')
+FROM sys.dm_db_index_physical_stats(db_id(), object_id('dbo.tmpLockExample'),null,null,'DETAILED')
 
 BEGIN TRAN
 SELECT *, DATALENGTH(LNAME)
-FROM dbo.tmp WITH(UPDLOCK, ROWLOCK)
+FROM dbo.tmpLockExample WITH(UPDLOCK, ROWLOCK)
 WHERE ID BETWEEN 000 AND 10000 
 
 
@@ -71,4 +76,3 @@ FROM    sys.dm_db_index_operational_stats(DB_ID(), NULL, NULL, NULL) ddios
 WHERE   ddios.index_lock_promotion_count > 0 
 
 COMMIT
---DROP TABLE dbo.tmp;
