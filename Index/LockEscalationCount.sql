@@ -36,7 +36,7 @@ FROM sys.dm_db_index_physical_stats(db_id(), object_id('dbo.tmpLockExample'),nul
 
 BEGIN TRAN
 SELECT *, DATALENGTH(LNAME)
-FROM dbo.tmpLockExample WITH(UPDLOCK, ROWLOCK)
+FROM dbo.tmpLockExample --WITH(UPDLOCK, ROWLOCK)
 WHERE ID BETWEEN 000 AND 10000 
 
 
