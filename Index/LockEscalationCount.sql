@@ -1,4 +1,46 @@
 /*
+This example will: 
+1. Create a new table
+2. Inject records
+3. Index the table
+4. SELECT with a update lock simulating the intent to hold the row in a lock for a future update
+5. The user running this script will then need to open a new spid and delete the records to create contention
+6. Finally, back to this spid, run the sql query to identify lock escalations
+*/
+
+
+SET NOCOUNT ON
+CREATE TABLE dbo.tmp(ID INT IDENTITY(1,1), FNAME NVARCHAR(50) NULL, LNAME NVARCHAR(MAX));
+GO
+INSERT INTO dbo.tmp(FNAME,LNAME) SELECT CAST(NEWID() AS NVARCHAR(50)), space(10000)
+GO 10000
+
+CREATE CLUSTERED INDEX clsID ON dbo.tmp(ID)
+CREATE NONCLUSTERED INDEX xCovering ON dbo.tmp(ID) INCLUDE(FNAME,LNAME)
+
+-- Check to see the number of pages 
+SELECT 
+	DB_NAME(database_id) DatabaseName, 
+	OBJECT_SCHEMA_NAME(object_id) SchemaName,
+	index_type_desc, 
+	index_depth, 
+	index_level, 
+	page_count,
+	record_count
+FROM sys.dm_db_index_physical_stats(db_id(), object_id('dbo.tmp'),null,null,'DETAILED')
+
+BEGIN TRAN
+SELECT *, DATALENGTH(LNAME)
+FROM dbo.tmp WITH(UPDLOCK, ROWLOCK)
+WHERE ID BETWEEN 000 AND 10000 
+
+
+PRINT 'Open a second connection here and run BEGIN TRAN DELETE dbo.tmp'
+PRINT 'Next, come back to this spid and run the query below while the second query is waiting'
+WAITFOR DELAY '00:00:30' -- Wait 30 seconds
+WAITFOR DELAY '00:00:02';
+
+/*
 https://www.simple-talk.com/sql/performance/tune-your-indexing-strategy-with-sql-server-dmvs/
 Identify lock escalations
 
@@ -27,3 +69,6 @@ FROM    sys.dm_db_index_operational_stats(DB_ID(), NULL, NULL, NULL) ddios
         INNER JOIN sys.indexes i ON ddios.OBJECT_ID = i.OBJECT_ID
                                     AND ddios.index_id = i.index_id
 WHERE   ddios.index_lock_promotion_count > 0 
+
+COMMIT
+--DROP TABLE dbo.tmp;
