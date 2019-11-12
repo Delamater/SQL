@@ -56,11 +56,11 @@ CREATE PRIMARY XML INDEX XMLIndex ON dbo.PlanCacheAnalysis([QueryPlan])
 --sp_spaceused 'dbo.PlanCacheAnalysis'
 SELECT *
 FROM PlanCacheAnalysis
-WHERE 
-	QueryPlan.exist('declare namespace NS="http://schemas.microsoft.com/sqlserver/2004/07/showplan";data(//NS:RelOp[@PhysicalOp="Clustered Index Scan"][1])') = 1
+-- WHERE 
+--	QueryPlan.exist('declare namespace NS="http://schemas.microsoft.com/sqlserver/2004/07/showplan";data(//NS:RelOp[@PhysicalOp="Clustered Index Scan"][1])') = 1
 	--[@EstimateRows * @AvgRowSize > 50000.0][1])') = 1 
-    AND [ExecutionCount] > 1  -- No Ad-Hoc queries,
-	AND DatabaseName = 'x3'
+--    AND [ExecutionCount] > 1  -- No Ad-Hoc queries,
+--	AND DatabaseName = 'x3'
 
 ORDER BY TotalElapsedTime DESC
         ,ExecutionCount DESC;
