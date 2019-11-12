@@ -16,7 +16,7 @@
 	) TabA
 	CROSS APPLY record_data.nodes('//Record') AS records (record)
 )
-SELECT RBC.*, m.text
+SELECT RBC.*, M.text
 FROM RingBufferConnectivity RBC
 LEFT JOIN sys.messages M ON
 	RBC.Error = M.message_id AND M.language_id = 1033
