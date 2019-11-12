@@ -46,8 +46,8 @@ FROM sys.dm_exec_cached_plans AS ECP
          ON ECP.plan_handle = EQS.plan_handle     
      CROSS APPLY sys.dm_exec_sql_text(ECP.[plan_handle]) AS EST 
      CROSS APPLY sys.dm_exec_query_plan(ECP.[plan_handle]) AS EQP
-WHERE EQS.[ExecutionCount] > 1  -- No Ad-Hoc queries
-      AND ECP.[usecounts] > 1
+--WHERE EQS.[ExecutionCount] > 1  -- No Ad-Hoc queries
+--      AND ECP.[usecounts] > 1
 ORDER BY EQS.TotalElapsedTime DESC
         ,EQS.ExecutionCount DESC;
 
@@ -56,11 +56,11 @@ CREATE PRIMARY XML INDEX XMLIndex ON dbo.PlanCacheAnalysis([QueryPlan])
 --sp_spaceused 'dbo.PlanCacheAnalysis'
 SELECT *
 FROM PlanCacheAnalysis
--- WHERE 
---	QueryPlan.exist('declare namespace NS="http://schemas.microsoft.com/sqlserver/2004/07/showplan";data(//NS:RelOp[@PhysicalOp="Clustered Index Scan"][1])') = 1
+WHERE 
+	QueryPlan.exist('declare namespace NS="http://schemas.microsoft.com/sqlserver/2004/07/showplan";data(//NS:RelOp[@PhysicalOp="Clustered Index Scan"][1])') = 1
 	--[@EstimateRows * @AvgRowSize > 50000.0][1])') = 1 
---    AND [ExecutionCount] > 1  -- No Ad-Hoc queries,
---	AND DatabaseName = 'x3'
+    AND [ExecutionCount] > 1  -- No Ad-Hoc queries,
+	AND DatabaseName = 'x3'
 
 ORDER BY TotalElapsedTime DESC
         ,ExecutionCount DESC;
