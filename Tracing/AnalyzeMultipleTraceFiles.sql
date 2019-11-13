@@ -152,7 +152,7 @@ BEGIN
 	t.LineNumber, t.NestLevel, t.ObjectName, 
 	t.ObjectType, t.RowCounts, t.SourceDatabaseID, t.CPU, t.Offset, t.Reads, 
 	t.Writes
-FROM            ADC_lockedprocess_102517 AS t INNER JOIN
+FROM            ' + @TblName + ' AS t INNER JOIN
                          sys.trace_events AS te ON t.EventClass = te.trace_event_id'
 
 	SET @sql = COALESCE(@sql,' ') + @SelectList
@@ -179,4 +179,3 @@ WHERE EventClass = ' + CAST(@EventTypeFilter AS NVARCHAR(5))
 	PRINT @sql
 
 END
-
