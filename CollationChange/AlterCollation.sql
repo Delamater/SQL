@@ -113,8 +113,7 @@ BEGIN
 		--ORDER BY t.SchemaName, t.TableName
 		ORDER BY table_name, index_id
 		
-		SELECT * FROM @CommandLog ORDER BY ID -- TODO: REMOVE ME / FOR DEBUG
-
+		--SELECT * FROM @CommandLog ORDER BY ID -- TODO: REMOVE ME / FOR DEBUG
 
 		/************************* Execution Of Commands *************************/
 		SET @tsql = ''
