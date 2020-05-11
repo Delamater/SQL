@@ -24,18 +24,20 @@ BEGIN
 		DECLARE @CommandLog TABLE 
 		(
 			ID INT PRIMARY KEY IDENTITY(1,1) NOT NULL, 
-			Command NVARCHAR(MAX) NOT NULL, 
+			Command NVARCHAR(4000) NOT NULL, 
 			CommandType NVARCHAR(25) NOT NULL, 
-			ExecutionTime DATETIME
-		) 
+			ExecutionTime DATETIME,
+			UNIQUE NONCLUSTERED (Command)
 
+		) 
 
 		SET @kDropIndexCmd		= 'DROP INDEX'
 		SET @kCreateIndexCmd	= 'INDEX CREATION'
 		SET @kAlterColumnCmd	= 'Collation Change'
 
 		/********************* Sanity Checks *************************************/
-		-- Are we an X3 database?
+		-- Are we an in the correct database? Implement business specific logic here. 
+
 		-- Do we have rights to drop, create and alter objects?
 
 
@@ -97,94 +99,21 @@ BEGIN
 			CROSS APPLY dbo.uspGetDropIndexesByTableSyntax(SchemaName, TableName) d
 		ORDER BY t.SchemaName, t.TableName
 
-		SELECT * FROM @CommandLog -- TODO: REMOVE ME / FOR DEBUG
-
-
 		/********************* Alter collation methods For objects ***************/	
-		/*	
-		-- Alter tables and all their columns
-		SET @totalCommands = (SELECT COUNT(*) FROM #cols)
-		SET @commandBuildProgressCount = 0
-
-		DECLARE commandBuilderCursor CURSOR FORWARD_ONLY FOR 
-		--SELECT SchemaName, TableName, ColumnName FROM #cols WHERE SchemaName = 'SEED' AND TableName = 'ABANK'
-		--SELECT ColumnName, collation_name, [Type], Nullable, SourceTable, SchemaName, TableName 
-		SELECT SchemaName, TableName, ColumnName, [Type]
-		FROM #cols
-		ORDER BY SchemaName, TableName
-
-		OPEN commandBuilderCursor
-		FETCH NEXT FROM commandBuilderCursor INTO @SchemaName, @TableName, @ColName, @system_type_name
-
-		WHILE @@FETCH_STATUS = 0
-		BEGIN
-			-- Drop index
-			--INSERT INTO @CommandLog(Command, CommandType) 
-			--SELECT DropSyntax, @kDropIndexCmd FROM dbo.uspGetDropIndexesByTableSyntax(@SchemaName, @TableName)
-
-			-- ALTER TABLE With new Collation
-			SET @tsql = CONCAT('ALTER TABLE ', @SchemaName, '.', @TableName, ' ALTER COLUMN ', @ColName, ' ', @system_type_name,' ', 'COLLATE ', @NewCollateMethod)
-			INSERT INTO @CommandLog(Command, CommandType) VALUES(@tsql, @kAlterColumnCmd)
-			
-			-- Add index back
-			--INSERT INTO @CommandLog(Command, ExecutionTime)
-			--SELECT 
-			--	'CREATE ' + 
-			--		CASE ORDIND_0 
-			--			WHEN 0 THEN 'NONCLUSTERED ' 
-			--			WHEN 1 THEN 'CLUSTERED '
-			--		END + 
-
-			--	' INDEX ' + CODFIC_0 + '_' + CODIND_0 + ' ON ' + 'SEED' + '.' + CODFIC_0 + '(' + REPLACE(DESCRIPT_0,'+','_0, ') + '_0)' , *
-			--FROM SEED.ATABIND ati
-			--WHERE CODFIC_0 = 'BANK'
-
-			--INSERT INTO @CommandLog(Command, CommandType)
-			--SELECT index_create_statement, @kCreateIndexCmd
-			--FROM dbo.uspGetCreateIndexSyntax(@X3Users,@TableName)
-			----FROM dbo.uspGetCreateIndexSyntax(@X3Users,'BANK')
-
-			FETCH NEXT FROM commandBuilderCursor INTO @SchemaName, @TableName, @ColName, @system_type_name
-
-			SET @commandBuildProgressCount += 1
-			IF @commandBuildProgressCount % 100 = 0
-			BEGIN
-				SET @statusMsg = 'Command Builder Progress: ' + CAST(@commandBuildProgressCount AS NVARCHAR(20)) + ' columns handled | ' 
-									+ @SchemaName + '.' + @TableName + ' ' + @ColName + ' ' + CAST(CURRENT_TIMESTAMP AS NVARCHAR(20))
-				RAISERROR(@statusMsg,10,1) WITH NOWAIT
-			END
-			---- If % complete is a multiple of 10, let's report it
-			--SET @percentComplete = 1 - (CAST(@totalCommands AS DECIMAL(18,2)) - CAST(@commandBuildProgressCount AS DECIMAL(18,2))) / CAST(@totalCommands AS DECIMAL(18,2))
-			--IF ROUND(@percentComplete,2) % .1 = 0
-			--BEGIN
-			--	PRINT 'Command Builder Progress: ' + CAST(CAST(ROUND(@percentComplete,2) AS DECIMAL(5,2))AS NVARCHAR(10))
-			--END
-
-		END
-
-		CLOSE commandBuilderCursor
-		DEALLOCATE commandBuilderCursor
-		*/
-
 		INSERT INTO @CommandLog(Command, CommandType) 
 		SELECT CONCAT('ALTER TABLE ', c.SchemaName, '.', c.TableName, ' ALTER COLUMN ', c.ColumnName, ' ', c.Type,' ', 'COLLATE ', @NewCollateMethod), @kAlterColumnCmd
 		FROM #cols c
 		ORDER BY SchemaName, TableName
-		SELECT * FROM @CommandLog -- TODO: REMOVE ME / FOR DEBUG
+
 		/********************* Create Index Creation Commands *********************/	
 		INSERT INTO @CommandLog(Command, CommandType)
-		SELECT d.DropSyntax, @kDropIndexCmd 
-		FROM #distinctTables t
-			CROSS APPLY dbo.uspGetDropIndexesByTableSyntax(SchemaName, TableName) d
-		WHERE t.TableName = 'BANK'
-
-		INSERT INTO @CommandLog(Command, CommandType)
 		SELECT index_create_statement, @kCreateIndexCmd
-		FROM #distinctTables t
-			CROSS APPLY dbo.uspGetCreateIndexSyntax(t.SchemaName, t.TableName) c
-		ORDER BY t.SchemaName, t.TableName
+		--FROM #distinctTables t
+		FROM dbo.uspGetCreateIndexSyntax(@X3Users, '%') c
+		--ORDER BY t.SchemaName, t.TableName
+		ORDER BY table_name, index_id
 		
-		SELECT * FROM @CommandLog -- TODO: REMOVE ME / FOR DEBUG
+		SELECT * FROM @CommandLog ORDER BY ID -- TODO: REMOVE ME / FOR DEBUG
 
 
 		/************************* Execution Of Commands *************************/
@@ -227,23 +156,6 @@ BEGIN
 
 		CLOSE executionCursor
 		DEALLOCATE executionCursor
-	
-		/************************* Recreate the indexes ******************************/
-		-- TODO: Custom indexes might be bult with spe routines, this won't work
-			-- Recreate the index
-		--SET @tsql = (
-		--	SELECT 
-		--		'CREATE ' + 
-		--			CASE ORDIND_0 
-		--				WHEN 0 THEN 'NONCLUSTERED ' 
-		--				WHEN 1 THEN 'CLUSTERED '
-		--			END + 
-
-		--		' INDEX ' + CODFIC_0 + '_' + CODIND_0 + ' ON ' + @SchemaName + '.' + CODFIC_0 + '(' + REPLACE(DESCRIPT_0,'+','_0, ') + '_0)' , *
-		--	FROM SEED.ATABIND ati
-		--	WHERE CODFIC_0 = 'BANK'
-		--)
-	
 
 		/************************* Validation Routine ********************************/
 		-- Check Foreign Keys

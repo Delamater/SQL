@@ -200,7 +200,16 @@ CREATE FUNCTION dbo.uspGetDropIndexesByTableSyntax(@schemaName SYSNAME, @tableNa
 
 GO
 
-CREATE FUNCTION dbo.uspGetCreateIndexSyntax(@folder SYSNAME, @tablePattern SYSNAME) 
+/******************************************************************************	
+Description: 
+	Taken from Kendra Little, this script will recreate the index as it is created now. 
+Parameters: 
+	@schema: A type of schema
+	@TablePattern: A table pattern such as SORDER%
+Returns: 
+	A table containing many columns, but most importantly, the create index syntax
+******************************************************************************/
+CREATE FUNCTION dbo.uspGetCreateIndexSyntax(@X3folders dbo.X3Users READONLY, @tablePattern SYSNAME) 
 	RETURNS TABLE AS RETURN
 (
 	SELECT 
@@ -270,10 +279,10 @@ CREATE FUNCTION dbo.uspGetCreateIndexSyntax(@folder SYSNAME, @tablePattern SYSNA
 	FROM sys.indexes AS si
 	JOIN sys.tables AS t ON si.object_id=t.object_id
 	JOIN sys.schemas AS sc ON t.schema_id=sc.schema_id
-	LEFT JOIN sys.dm_db_index_usage_stats AS stat ON 
-		stat.database_id = DB_ID() 
-		and si.object_id=stat.object_id 
-		and si.index_id=stat.index_id
+	--LEFT JOIN sys.dm_db_index_usage_stats AS stat ON 
+	--	stat.database_id = DB_ID() 
+	--	and si.object_id=stat.object_id 
+	--	and si.index_id=stat.index_id
 	LEFT JOIN sys.partition_schemes AS psc ON si.data_space_id=psc.data_space_id
 	LEFT JOIN sys.partition_functions AS pf ON psc.function_id=pf.function_id
 	LEFT JOIN sys.filegroups AS fg ON si.data_space_id=fg.data_space_id
@@ -337,7 +346,7 @@ CREATE FUNCTION dbo.uspGetCreateIndexSyntax(@folder SYSNAME, @tablePattern SYSNA
 		si.type IN (0,1,2) /* heap, clustered, nonclustered */
 		AND si.name is not null
 		AND si.name NOT LIKE '%ROWID%'
-		AND sc.name IN (@folder)
+		AND sc.name IN (SELECT DOSSIER_0 FROM @X3folders )
 		AND t.name LIKE @tablePattern
 	--ORDER BY table_name, si.index_id
 	--OPTION (RECOMPILE);
