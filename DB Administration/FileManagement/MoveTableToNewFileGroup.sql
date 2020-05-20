@@ -1,0 +1,85 @@
+USE [emv12]
+GO
+DBCC SHRINKFILE (N'SEED_DAT' , 8000)
+GO
+USE [emv12]
+GO
+DBCC SHRINKFILE (N'SEED_IDX' , 15000)
+GO
+USE [emv12]
+GO
+DBCC SHRINKFILE (N'emv12_log' , 10000)
+GO
+
+-- Add new filegroup
+ALTER DATABASE emv12 ADD FILEGROUP BigTables;
+GO
+ALTER DATABASE emv12 ADD FILE
+(
+	NAME = BigTables, 
+	FILENAME = 'D:\SQLFileGroups\BigFiles.ndf',
+	SIZE = 20000MB
+) TO FILEGROUP BigTables
+
+
+-- Move tables to new filegroup
+CREATE UNIQUE CLUSTERED INDEX clsHAE0 ON SEED.UGACCENTRY(TYP_0, NUM_0)  ON [BigTables]
+CREATE UNIQUE CLUSTERED INDEX clsDAE0 ON SEED.UACCENTRYD(TYP_0, NUM_0, LIN_0, LEDTYP_0) ON [BigTables]
+
+--truncate table SEED.UGACCENTRY
+ALTER SEQUENCE SEED.ZBOB RESTART WITH 1
+INSERT INTO SEED.UGACCENTRY
+SELECT       UPDTICK_0, 'ZBOB' TYP, 'NUM'+CAST((NEXT VALUE FOR SEED.ZBOB)AS NVARCHAR(10)) NUM, CPY_0, FCY_0, JOU_0, FIY_0, PER_0, BOLLATO_0, ACCDAT_0, ENTDAT_0, VALDAT_0, DUDDAT_0, BANDAT_0, RATDAT_0, CAT_0, STA_0, FNLPSTDAT_0, ORIMOD_0, DACDIA_0, 
+                         FLGDAS_0, FLGFUP_0, FLGPAZ_0, FLGREP_0, FLGGEN_0, TYPDUD_0, BANCIB_0, CUR_0, TYPRAT_0, LED_0, LED_1, LED_2, LED_3, LED_4, LED_5, LED_6, LED_7, LED_8, LED_9, CURLED_0, CURLED_1, 
+                         CURLED_2, CURLED_3, CURLED_4, CURLED_5, CURLED_6, CURLED_7, CURLED_8, CURLED_9, RATMLT_0, RATMLT_1, RATMLT_2, RATMLT_3, RATMLT_4, RATMLT_5, RATMLT_6, RATMLT_7, RATMLT_8, 
+                         RATMLT_9, RATDIV_0, RATDIV_1, RATDIV_2, RATDIV_3, RATDIV_4, RATDIV_5, RATDIV_6, RATDIV_7, RATDIV_8, RATDIV_9, DESVCR_0, REF_0, BPRVCR_0, BPRDATVCR_0, REFSIM_0, REFINT_0, NUMDCL_0, 
+                         RVS_0, RVSDAT_0, RVSORITYP_0, RVSORINUM_0, EXPNUM_0, CREDAT_0, CREUSR_0, UPDDAT_0, UPDUSR_0, ORIGIN_0, CREDATTIM_0, UPDDATTIM_0, AUUID_0, FNLPSTNUM_0, FNLPSTNUM_1, 
+                         FNLPSTNUM_2, FNLPSTNUM_3, FNLPSTNUM_4, FNLPSTNUM_5, FNLPSTNUM_6, FNLPSTNUM_7, FNLPSTNUM_8, FNLPSTNUM_9, PJT_0, ORICOD_0
+FROM            SEED.GACCENTRY AS GACCENTRY_1, (SELECT TOP 3000 * FROM sys.columns) c
+WHERE TYP_0 = 'CSINV' AND NUM_0 = 'NA0231302INV000025'
+
+
+--truncate table SEED.UACCENTRYD
+ALTER SEQUENCE SEED.ZBOB RESTART WITH 1
+
+
+DECLARE @i integer
+SET @i = 1
+WHILE @i < 3000
+BEGIN
+	ALTER SEQUENCE SEED.ZBOB2 RESTART WITH 1
+	INSERT INTO SEED.UACCENTRYD
+	SELECT        UPDTICK_0, 'ZBOB' TYP_0, 'NUM' + cast(@i as nvarchar(10)) NUM_0, (NEXT VALUE FOR SEED.ZBOB2) LIN_0, LEDTYP_0, LED_0, ACCNUM_0, CHRNUM_0, IDTLIN_0, CPY_0, FCYLIN_0, ACCDAT_0, FIY_0, PER_0, COA_0, SAC_0, ACC_0, BPR_0, DSP_0, SNS_0, CUR_0, AMTCUR_0, 
+							 CURLED_0, AMTLED_0, AMTFLG_0, AMTLED1_0, UOM_0, QTY_0, DES_0, REFINTLIN_0, OFFACC_0, CSLCOD_0, CSLFLO_0, STT1_0, STT2_0, STT3_0, MTC_0, MTCDAT_0, MTCDATMIN_0, MTCDATMAX_0, 
+							 FLGMTC_0, FREREF_0, CHK_0, CHKDAT_0, MRK_0, TAX_0, TAX2_0, TAX3_0, AMTVAT_0, INDEDVAT_0, EXPNUM_0, ACCNUMORI_0, ACCNUMDOE_0, CAPFLOTYP_0, VATRAT_0, VATDEDRAT_0, CREDATTIM_0, 
+							 UPDDATTIM_0, AUUID_0, CREUSR_0, UPDUSR_0, CSLBPR_0, PJTLIN_0
+	--INTO #tmp
+	FROM            SEED.GACCENTRYD d, (select top 32000 * FROM sys.columns) c
+	WHERE NUM_0 = 'NA0211303INV000066' AND LIN_0 = 10 AND LEDTYP_0 = 3 AND TYP_0 = 'CSINV'
+
+	SET @i += 1
+END
+
+
+
+
+select 
+a.Name as 'File group Name', type_desc as 'Filegroup Type', case when is_default=1 then 'Yes' else 'No' end as 'Is filegroup default?',
+b.filename as 'File Location',
+b.name 'Logical Name',
+Convert(numeric(10,3),Convert(numeric(10,3),(size/128))/1024) as 'File Size in MB'
+ from sys.filegroups a inner join sys.sysfiles b on a.data_space_id=b.groupid
+
+
+SELECT Obj.[name] as [Table Name],
+       Obj.[type] as [Object Type],
+       INDX.[name] as [Index Name],
+       FG.[name] as [Filegroup Name]
+FROM   sys.indexes INDX
+       INNER JOIN sys.filegroups FG
+               ON INDX.data_space_id = FG.data_space_id
+       INNER JOIN sys.all_objects Obj
+               ON INDX.[object_id] = Obj.[object_id]
+WHERE  INDX.data_space_id = FG.data_space_id
+And Obj.type='U'      
+ORDER BY [Filegroup Name] 
