@@ -11,4 +11,4 @@ JOIN sys.objects AS o
 JOIN sys.schemas AS s  
     ON o.schema_id = s.schema_id
 WHERE pr.name = '<Application DB Role Name, NVARCHAR(MAX),X3_ADX_SYS>'
-ORDER BY s.name, o.name
+ORDER BY s.name, o.name;
