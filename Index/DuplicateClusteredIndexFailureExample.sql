@@ -39,19 +39,23 @@ DECLARE @i INT, @iCount BIGINT, @msg NVARCHAR(MAX)
 WHILE 1=1 
 BEGIN
     BEGIN TRY
-        INSERT INTO dbo.Duplicates(DuplicateValueColumn)
-        SELECT TOP 2000000 CAST(1 AS BIT) 
-        FROM sys.columns a
+        INSERT INTO dbo.Duplicates
+        (DuplicateValueColumn)
+    SELECT TOP 2000000
+        CAST(1 AS BIT)
+    FROM sys.columns a
             CROSS JOIN sys.columns b
-            CROSS JOIN (SELECT TOP 23 column_id from sys.columns) c;
+            CROSS JOIN (SELECT TOP 23
+            column_id
+        from sys.columns) c;
 		SET @iCount = (
 			SELECT
-			   Total_Rows= SUM(st.row_count)
-			FROM
-			   sys.dm_db_partition_stats st
-			WHERE
-				object_name(object_id) = 'Duplicates' AND (index_id < 2)	
-				AND OBJECT_SCHEMA_NAME(object_id) = 'dbo'		
+        Total_Rows= SUM(st.row_count)
+    FROM
+        sys.dm_db_partition_stats st
+    WHERE
+				object_name(object_id) = 'Duplicates' AND (index_id < 2)
+        AND OBJECT_SCHEMA_NAME(object_id) = 'dbo'		
 		)
 		SET @msg = (SELECT FORMATMESSAGE('Total rows: %I64d - | %s', @iCount,(SELECT CAST(SYSUTCDATETIME() AS NVARCHAR(MAX)))))
 		RAISERROR(@msg, 0, 1) WITH NOWAIT
@@ -62,12 +66,12 @@ BEGIN
     END TRY
     BEGIN CATCH
         SELECT
-            ERROR_NUMBER() AS ErrorNumber,
-            ERROR_STATE() AS ErrorState,
-            ERROR_SEVERITY() AS ErrorSeverity,
-            ERROR_PROCEDURE() AS ErrorProcedure,
-            ERROR_LINE() AS ErrorLine,
-            ERROR_MESSAGE() AS ErrorMessage;
+        ERROR_NUMBER() AS ErrorNumber,
+        ERROR_STATE() AS ErrorState,
+        ERROR_SEVERITY() AS ErrorSeverity,
+        ERROR_PROCEDURE() AS ErrorProcedure,
+        ERROR_LINE() AS ErrorLine,
+        ERROR_MESSAGE() AS ErrorMessage;
 
 			BREAK
     END CATCH
