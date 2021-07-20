@@ -5,11 +5,11 @@ $dbName = "dbTest"
 $queryTimeout = 10
 
 function InitDatabase(){
-    $curPath = Get-Location
+    $curPath = (Join-Path -Path ($PSScriptRoot) "Resources")
     
-    ExecuteFileQuery -filePath $(Join-Path -Path $curPath -ChildPath "ReadCommittedSnapshot\Examples\SnapshotIsolationON\Powershell\Resources\CreateDatabase.sql") 
-    ExecuteFileQuery -filePath $(Join-Path -Path $curPath -ChildPath "ReadCommittedSnapshot\Examples\SnapshotIsolationON\Powershell\Resources\CreateObjects.sql") -dbName $dbName
-    ExecuteFileQuery -filePath $(Join-Path -Path $curPath -ChildPath "ReadCommittedSnapshot\Examples\SnapshotIsolationON\Powershell\Resources\InsertData.sql") -dbName $dbName
+    ExecuteFileQuery -filePath $(Join-Path -Path $curPath -ChildPath "CreateDatabase.sql") 
+    ExecuteFileQuery -filePath $(Join-Path -Path $curPath -ChildPath "CreateObjects.sql") -dbName $dbName
+    ExecuteFileQuery -filePath $(Join-Path -Path $curPath -ChildPath "InsertData.sql") -dbName $dbName
 }
 
 function Cleanup(){

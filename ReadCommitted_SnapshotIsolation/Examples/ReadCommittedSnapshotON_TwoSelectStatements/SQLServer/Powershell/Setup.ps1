@@ -5,11 +5,11 @@ $dbName = "dbTest"
 $queryTimeout = 10
 
 function InitDatabase(){
-    $curPath = Get-Location
+    $curPath = (Join-Path -Path ($PSScriptRoot) "Resources")
     
-    ExecuteFileQuery -filePath $(Join-Path -Path $curPath -ChildPath "ReadCommittedSnapshot\Examples\ReadCommittedSnapshotON_TwoSelectStatements\Powershell\Resources\CreateDatabase.sql") 
-    ExecuteFileQuery -filePath $(Join-Path -Path $curPath -ChildPath "ReadCommittedSnapshot\Examples\ReadCommittedSnapshotON_TwoSelectStatements\Powershell\Resources\CreateObjects.sql") -dbName $dbName
-    ExecuteFileQuery -filePath $(Join-Path -Path $curPath -ChildPath "ReadCommittedSnapshot\Examples\ReadCommittedSnapshotON_TwoSelectStatements\Powershell\Resources\InsertData.sql") -dbName $dbName
+    ExecuteFileQuery -filePath $(Join-Path -Path $curPath -ChildPath "CreateDatabase.sql") 
+    ExecuteFileQuery -filePath $(Join-Path -Path $curPath -ChildPath "CreateObjects.sql") -dbName $dbName
+    ExecuteFileQuery -filePath $(Join-Path -Path $curPath -ChildPath "InsertData.sql") -dbName $dbName
 }
 
 function Cleanup(){
@@ -39,13 +39,11 @@ function ExecuteAdHocQuery($query, $dbName){
 }
 
 try {
+    
     ExecuteAdHocQuery("Select 'Testing Connection'")    
     # Init database
     InitDatabase
 
-
-
-    # Cleanup
     Cleanup
     Write-Host "Procedure complete"
 
