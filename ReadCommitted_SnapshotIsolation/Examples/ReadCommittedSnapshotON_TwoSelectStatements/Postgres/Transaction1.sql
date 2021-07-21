@@ -1,12 +1,9 @@
--- Connection 1
-
-	
+-- Connection 1	
 -- TRANSACTION 1
-ALTER DATABASE dbtest SET default_transaction_isolation TO 'read committed';
 -- select * from RESEARCH.EMPLOYEE WHERE id  = 1
 
 -- STEP 1 -> Then go to transaction 2
-SET TRANSACTION ISOLATION LEVEL SNAPSHOT
+-- SET TRANSACTION ISOLATION LEVEL SNAPSHOT
 BEGIN TRANSACTION;
 	UPDATE RESEARCH.EMPLOYEE
 	SET FNAME = 'BOBBY'
