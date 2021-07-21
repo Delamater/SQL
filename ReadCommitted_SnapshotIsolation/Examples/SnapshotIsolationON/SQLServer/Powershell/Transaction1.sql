@@ -1,5 +1,6 @@
 -- TRANSACTION 1
-
+USE master
+GO
 ALTER DATABASE dbtest SET ALLOW_SNAPSHOT_ISOLATION ON;
 GO
 USE dbtest
@@ -7,8 +8,8 @@ GO
 
 
 -- STEP 1 -> Then go to transaction 2
-SET TRANSACTION ISOLATION LEVEL SNAPSHOT
 BEGIN TRANSACTION
+	SET TRANSACTION ISOLATION LEVEL SNAPSHOT
 	UPDATE RESEARCH.EMPLOYEE
 	SET FNAME = 'BOB'
 	WHERE ID = 1
@@ -17,7 +18,7 @@ BEGIN TRANSACTION
 
 -- STEP 3: Coming from tansaction 2 perform the commit by itself
 --COMMIT
-
+--rollback
 -- STEP 4: Check the other connection, you should have the following message: 
 /* 
 Msg 3960, Level 16, State 3, Line 7

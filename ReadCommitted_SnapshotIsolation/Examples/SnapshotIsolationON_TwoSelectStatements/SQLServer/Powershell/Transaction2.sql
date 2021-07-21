@@ -3,15 +3,15 @@ USE dbtest
 GO
 
 -- Step 2: Coming from transaction 1
-SET TRANSACTION ISOLATION LEVEL SNAPSHOT
 BEGIN TRANSACTION
+	SET TRANSACTION ISOLATION LEVEL SNAPSHOT
 	SELECT * FROM RESEARCH.EMPLOYEE WHERE ID = 1
 	-- STEP 2 STOP 
+	-- change from transaction 1 is not seen, value for fname is still a GUID
 
 	-- Stp 4: 
 	SELECT * FROM RESEARCH.EMPLOYEE WHERE ID = 1
-	
-	-- Result is statement level read consistency. FNAME = 'BOB'
+	-- change from transaction 1 is not seen, value for fname is still a GUID
 
 -- STEP 5: 
 COMMIT 
