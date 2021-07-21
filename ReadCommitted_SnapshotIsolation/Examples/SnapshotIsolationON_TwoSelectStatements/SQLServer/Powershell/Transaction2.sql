@@ -9,7 +9,7 @@ BEGIN TRANSACTION
 	-- STEP 2 STOP 
 	-- change from transaction 1 is not seen, value for fname is still a GUID
 
-	-- Stp 4: 
+	-- Step 4: 
 	SELECT * FROM RESEARCH.EMPLOYEE WHERE ID = 1
 	-- change from transaction 1 is not seen, value for fname is still a GUID
 

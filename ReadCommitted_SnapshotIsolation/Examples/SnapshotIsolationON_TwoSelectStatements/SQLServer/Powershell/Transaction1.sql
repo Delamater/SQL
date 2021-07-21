@@ -18,9 +18,5 @@ BEGIN TRANSACTION
 
 
 -- STEP 3: Coming from tansaction 2 perform the commit by itself
---COMMIT
+COMMIT
 
--- STEP 4: Check the other connection, you should have the following message: 
-/* 
-There is no error that occurs at this point
-*/
