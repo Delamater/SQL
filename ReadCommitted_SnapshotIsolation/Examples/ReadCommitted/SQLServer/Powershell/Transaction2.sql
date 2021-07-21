@@ -1,0 +1,16 @@
+-- TRANSACTION 2
+USE dbtest
+GO
+
+-- STEP 2 -> Then go to transaction 2
+BEGIN TRANSACTION;
+	SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+	UPDATE RESEARCH.EMPLOYEE
+	SET FNAME = 'BOBBY'
+	WHERE ID = 1
+
+
+
+-- STEP 4: No errors are present, now commit
+COMMIT -- no errors
+-- ROLLBACK 
