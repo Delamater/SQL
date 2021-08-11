@@ -1,3 +1,6 @@
+USE clusteredIndexAnalysis
+GO
+
 SET STATISTICS IO ON
 exec RESEARCH.uspSingleRowSelect @firstNum=1, @lastNum=1
 exec RESEARCH.uspSingleRowSelect_NC @firstNum=1, @lastNum=1 
