@@ -9,7 +9,11 @@ function InitDatabase(){
     
     ExecuteFileQuery -filePath $(Join-Path -Path $curPath -ChildPath "CreateDatabase.sql" -Resolve) 
     ExecuteFileQuery -filePath $(Join-Path -Path $curPath -ChildPath "CreateObjects.sql" -Resolve) -dbName $dbName
-    ExecuteFileQuery -filePath $(Join-Path -Path $curPath -ChildPath "InsertData.sql" -Resolve) -dbName $dbName
+
+    # Too slow, will use bcp method instead
+    # ExecuteFileQuery -filePath $(Join-Path -Path $curPath -ChildPath "InsertData.sql" -Resolve) -dbName $dbName
+    Start-Process $(Join-Path -Path $curPath -ChildPath "bcpFiles\bcpIn.cmd") -ErrorAction Stop
+
     ExecuteFileQuery -filePath $(Join-Path -Path $curPath -ChildPath "..\..\..\..\..\Locking\beta_lockinfo.sql" -Resolve) -dbName $dbName
 }
 
@@ -20,7 +24,7 @@ function Cleanup(){
 
 function ExecuteFileQuery($filePath, $dbName){
     if ($dbName){
-        $retVal = Invoke-Sqlcmd -InputFile $filePath -ServerInstance $Instance -Username $User -Password $Password -Database $dbName -ErrorAction Stop -QueryTimeout $queryTimeout
+        $retVal = Invoke-Sqlcmd -InputFile $filePath -ServerInstance $Instance -Username $User -Password $Password -Database $dbName -ErrorAction Stop #-QueryTimeout $queryTimeout
     } else{
         $retVal = Invoke-Sqlcmd -InputFile $filePath -ServerInstance $Instance -Username $User -Password $Password -ErrorAction Stop -QueryTimeout $queryTimeout
     }
@@ -39,12 +43,39 @@ function ExecuteAdHocQuery($query, $dbName){
     return $retVal
 }
 
+function bcpData {
+    param(
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$DatabaseName,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$SchemaName,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$TableName,        
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [ValidateSet('In','Out')]
+        [string]$Direction
+    )
+
+    $psCommand = "bcp $DatabaseName.$SchemaName.$TableName $Direction '$TableName.dat' -S $Instance -U $User -P '$Password' -n"
+    write-host   $psCommand
+
+    # Invoke-Expression $psCommand
+    Invoke-Command $psCommand
+    ## Do stuff to create a server here
+}
+
 try {
-    ExecuteAdHocQuery("Select 'Testing Connection'")    
+    
+    # ExecuteAdHocQuery("Select 'Testing Connection'")    
     # Init database
     InitDatabase
-
-
 
     # Cleanup
     Cleanup
