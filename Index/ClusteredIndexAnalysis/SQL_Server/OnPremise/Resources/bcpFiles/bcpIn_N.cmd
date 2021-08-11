@@ -1,4 +1,4 @@
-SET NumberOfRows=50000
+SET NumberOfRows=100000
 bcp clusteredIndexAnalysis.RESEARCH.EMPLOYEE IN EMPLOYEE.dat -S 127.0.0.1 -U SA -P yourStrong(!)Password -n -F 1 -L %NumberOfRows%
 bcp clusteredIndexAnalysis.RESEARCH.EMPLOYEE_NC IN EMPLOYEE_NC.dat -S 127.0.0.1 -U SA -P yourStrong(!)Password -n -F 1 -L %NumberOfRows%
 bcp clusteredIndexAnalysis.RESEARCH.EMPLOYEE_GUID IN EMPLOYEE_GUID.dat -S 127.0.0.1 -U SA -P yourStrong(!)Password -n -F 1 -L %NumberOfRows%
