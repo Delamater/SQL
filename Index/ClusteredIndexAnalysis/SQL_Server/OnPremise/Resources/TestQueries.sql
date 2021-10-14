@@ -2,8 +2,8 @@ USE clusteredIndexAnalysis
 GO
 
 SET STATISTICS IO ON
-exec RESEARCH.uspSingleRowSelect @firstNum=1, @lastNum=1
-exec RESEARCH.uspSingleRowSelect_NC @firstNum=1, @lastNum=1 
+--exec RESEARCH.uspSingleRowSelect @firstNum=1, @lastNum=1
+--exec RESEARCH.uspSingleRowSelect_NC @firstNum=1, @lastNum=1 
 
 SELECT * 
 FROM RESEARCH.EMPLOYEE 
@@ -17,10 +17,10 @@ ORDER BY FNAME, LNAME
 
 SELECT * 
 FROM RESEARCH.EMPLOYEE_GUID
-WHERE ID = '38B8BA63-BB49-49CD-889E-7B636E23B575' -- Requires a manual change to this value 
+WHERE ID = 'C44DC2A9-8A17-40EF-AC5B-8155745747EF' -- Requires a manual change to this value 
 ORDER BY FNAME, LNAME
 
 SELECT * 
 FROM RESEARCH.EMPLOYEE_GUID_NC
-WHERE ID = '6C198C64-AB87-44B7-BE7D-B5D062CBCD8F' -- Requires a manual change to this value 
+WHERE ID = 'E8319E40-266E-402D-9F4B-264D46C5970C' -- Requires a manual change to this value 
 ORDER BY FNAME, LNAME
