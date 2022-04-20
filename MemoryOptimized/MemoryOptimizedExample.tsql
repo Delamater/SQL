@@ -1,0 +1,45 @@
+DROP TABLE IF EXISTS SEED.Sales
+DROP TRIGGER IF EXISTS SEED.Sales_tr
+
+CREATE TABLE SEED.Sales
+   (ID INT PRIMARY KEY NONCLUSTERED, 
+   [ProductKey] INT NOT NULL,  
+    [OrderDateKey] [int] NOT NULL,
+	[ProductDesc] NVARCHAR(400) NOT NULL)
+   --INDEX IDX_ProductKey HASH ([ProductKey,OrderDateKey]) WITH (BUCKET_COUNT = 100))  
+   WITH (MEMORY_OPTIMIZED = ON, DURABILITY = SCHEMA_ONLY)
+GO
+
+ALTER TABLE SEED.Sales  
+    ADD CONSTRAINT constraintUnique_SDT_CN  
+    UNIQUE NONCLUSTERED ([ProductKey] ASC, [OrderDateKey] ASC);  
+go  
+
+ALTER TABLE SEED.Sales  
+    ADD INDEX idx_hash_SEED
+    HASH (ProductKey,ProductDesc) WITH (BUCKET_COUNT = 64);  -- Nonunique.  
+go
+
+
+Create Trigger  
+ SEED.Sales_tr
+ On SEED.Sales WITH NATIVE_COMPILATION, schemabinding
+ After INSERT 
+AS BEGIN ATOMIC WITH  
+(  
+ TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'us_english'  
+)  
+
+
+  --set nocount on 
+  Declare @blank   NVARCHAR(1) 
+ update SEED.Sales
+ SET [ProductKey]=123
+End 
+
+GO
+
+INSERT INTO SEED.Sales(ID,ProductKey,OrderDateKey,ProductDesc) VALUES(1,1,1,'Widget1'),(2,1,2,'Widget2')
+INSERT INTO SEED.Sales(ID,ProductKey,OrderDateKey,ProductDesc) VALUES(1,1,1,'Widget1')
+
+SELECT * FROM SEED.Sales
