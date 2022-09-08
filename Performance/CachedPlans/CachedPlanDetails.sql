@@ -1,4 +1,9 @@
 -- Get all SQL Statements with "table scan" in cached query plan
+/*********************** Optional ****************************
+* DBCC FREEPROCCACHE
+* 
+*************************************************************/
+DROP TABLE IF EXISTS #wrk
 ;WITH 
  XMLNAMESPACES
     (DEFAULT N'http://schemas.microsoft.com/sqlserver/2004/07/showplan'  
@@ -15,10 +20,14 @@
      GROUP BY EQS.plan_handle)   
 SELECT 
 	  RelOp.op.value(N'@PhysicalOp', N'varchar(50)') AS PhysicalOperator
+	  ,ECP.usecounts
       ,RelOp.op.value(N'@EstimateIO', N'float') AS EstimatedIO
 	  ,RelOp.op.value(N'@EstimateCPU', N'float') AS EstimatedCPU
 	  ,RelOp.op.value(N'@EstimateRows', N'float') AS EstimatedRows
 	  ,RelOp.op.value(N'@Warnings', N'varchar(100)') AS Warnings
+	  ,RelOp.op.value('(TableScan/Object/@Schema)[1]','sysname') AS Schema_Name
+	  ,RelOp.op.value('(TableScan/Object/@Table)[1]','sysname') AS Table_Name
+	  ,RelOp.op.value('(TableScan/Object/@Index)[1]','sysname') AS Index_Name
 	  ,EQS.[ExecutionCount]
       ,EQS.[TotalWorkTime]
       ,EQS.[TotalLogicalReads]
@@ -31,6 +40,7 @@ SELECT
       ,OBJECT_NAME(EST.[objectid], EST.[dbid]) AS [ObjectName]
       ,EST.[text] AS [Statement]      
       ,EQP.[query_plan] AS [QueryPlan]
+	  
 INTO #wrk
 FROM sys.dm_exec_cached_plans AS ECP
      INNER JOIN EQS
@@ -58,9 +68,10 @@ INCLUDE
 
 SELECT *
 FROM #wrk
-WHERE 
-	PhysicalOperator IN('Table Scan', 'Deleted Scan', 'Index Scan', 'Clustered Index Scan')
+WHERE Statement NOT LIKE '-- Get all SQL Statements with "table scan" %'
+	--AND PhysicalOperator IN('Table Scan', 'Deleted Scan', 'Index Scan', 'Clustered Index Scan')
 	--Statement LIKE '%SELECT TOP 200000%'
-ORDER BY EstimatedCPU DESC
---DROP TABLE #wrk
+	and lower(Statement) like '%apllck%'
+ORDER BY TotalWorkTime DESC
+
 
