@@ -1,3 +1,9 @@
+-- Get all SQL Statements with "table scan" in cached query plan
+/*********************** Optional ****************************
+* DBCC FREEPROCCACHE
+* 
+*************************************************************/
+DROP TABLE IF EXISTS #wrk
 ;WITH 
  XMLNAMESPACES
     (DEFAULT N'http://schemas.microsoft.com/sqlserver/2004/07/showplan'  
@@ -11,10 +17,17 @@
            ,SUM(EQS.total_elapsed_time) AS TotalElapsedTime
            ,MAX(EQS.last_execution_time) AS LastExecutionTime
      FROM sys.dm_exec_query_stats AS EQS
-     GROUP BY EQS.plan_handle) 
---INSERT INTO dbo.PlanCacheAnalysis  
+     GROUP BY EQS.plan_handle)   
 SELECT 
-	  EQS.TotalWorkTime / EQS.ExecutionCount ExecutionEffort
+	  RelOp.op.value(N'@PhysicalOp', N'varchar(50)') AS PhysicalOperator
+	  ,ECP.usecounts
+      ,RelOp.op.value(N'@EstimateIO', N'float') AS EstimatedIO
+	  ,RelOp.op.value(N'@EstimateCPU', N'float') AS EstimatedCPU
+	  ,RelOp.op.value(N'@EstimateRows', N'float') AS EstimatedRows
+	  ,RelOp.op.value(N'@Warnings', N'varchar(100)') AS Warnings
+	  ,RelOp.op.value('(TableScan/Object/@Schema)[1]','sysname') AS Schema_Name
+	  ,RelOp.op.value('(TableScan/Object/@Table)[1]','sysname') AS Table_Name
+	  ,RelOp.op.value('(TableScan/Object/@Index)[1]','sysname') AS Index_Name
 	  ,EQS.[ExecutionCount]
       ,EQS.[TotalWorkTime]
       ,EQS.[TotalLogicalReads]
@@ -26,16 +39,39 @@ SELECT
       ,DB_NAME(EST.[dbid]) AS [DatabaseName]
       ,OBJECT_NAME(EST.[objectid], EST.[dbid]) AS [ObjectName]
       ,EST.[text] AS [Statement]      
-	  , ECP.plan_handle
-      --,EQP.[query_plan] AS [QueryPlan]
+      ,EQP.[query_plan] AS [QueryPlan]
+	  
+INTO #wrk
 FROM sys.dm_exec_cached_plans AS ECP
      INNER JOIN EQS
          ON ECP.plan_handle = EQS.plan_handle     
-     CROSS APPLY sys.dm_exec_sql_text(ECP.[plan_handle]) AS EST 
-     --CROSS APPLY sys.dm_exec_query_plan(ECP.[plan_handle]) AS EQP
-WHERE EQS.[ExecutionCount] > 1  -- No Ad-Hoc queries
-      AND ECP.[usecounts] > 1
-ORDER BY 
-	EQS.TotalWorkTime / EQS.ExecutionCount DESC
+     CROSS APPLY sys.dm_exec_sql_text(ECP.[plan_handle]) AS EST
+     CROSS APPLY sys.dm_exec_query_plan(ECP.[plan_handle]) AS EQP
+	 CROSS APPLY EQP.query_plan.nodes(N'//RelOp') RelOp (op)
 
-SELECT * FROM sys.dm_exec_query_plan(0x060005001CDC4426F046E8200200000001000000000000000000000000000000000000000000000000000000)
+
+-- Performance optimizations
+PRINT 'Main query done, now adding indexes for performance'
+ALTER TABLE #wrk ADD ID INT IDENTITY(1,1) NOT NULL
+CREATE CLUSTERED INDEX clsCachePlans ON #wrk(ID) 
+CREATE NONCLUSTERED INDEX idxCachePlans ON #wrk(ID) 
+INCLUDE
+(
+	PhysicalOperator, EstimatedIO, EstimatedCPU, EstimatedRows,
+	Warnings, ExecutionCount, TotalWorkTime, TotalLogicalReads, 
+	TotalLogicalWrites, TotalElapsedTime, LastExecutionTime, 
+	ObjectType, CacheObjectType, DatabaseName, ObjectName, 
+	[Statement], QueryPlan
+)
+
+
+
+SELECT *
+FROM #wrk
+WHERE Statement NOT LIKE '-- Get all SQL Statements with "table scan" %'
+	--AND PhysicalOperator IN('Table Scan', 'Deleted Scan', 'Index Scan', 'Clustered Index Scan')
+	--Statement LIKE '%SELECT TOP 200000%'
+	and lower(Statement) like '%apllck%'
+ORDER BY TotalWorkTime DESC
+
+
