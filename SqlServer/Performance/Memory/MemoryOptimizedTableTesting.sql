@@ -1,3 +1,11 @@
+USE master
+GO
+DROP DATABASE TestDB
+
+CREATE DATABASE TestDB
+GO
+USE TestDB
+GO
 IF OBJECT_ID('dbo.uspTestMemoryOptimizedTables', 'P') IS NOT NULL
 BEGIN
 	PRINT 'Recreating Procedure: dbo.uspTestMemoryOptimizedTables'
@@ -5,13 +13,36 @@ BEGIN
 END
 GO
 
+/* You must have Memory optimized tables set up like the following, 
+Execute 
 
-/* You must have Memory optimized tables set up like the following:
+	SELECT TOP 1 
+		physical_name,
+		SUBSTRING(physical_name,1,(LEN(reverse(physical_name)) - charindex('/',reverse(string_escape(physical_name, 'json'))))) AS BasePath
+	FROM sys.database_files 
+	WHERE 
+		[name] = 'TestDB' 
+		AND [type_desc] = 'ROWS'
+
+to get base path. 
+Use ctrl+m to replace the variables below
+
 ALTER DATABASE TestDB ADD FILEGROUP Testing_Mod CONTAINS MEMORY_OPTIMIZED_DATA
-ALTER DATABASE TestDB ADD FILE(name='Testing_mod1', filename='F:\data\SQL\MSSQL12.MSSQLSERVER\MSSQL\DATA\Testing_mod1') TO FILEGROUP Testing_Mod
+ALTER DATABASE TestDB ADD FILE(name='Testing_mod1', filename='<path, NVARCHAR(520), >Testing_mod1') TO FILEGROUP Testing_Mod
 ALTER DATABASE TestDB SET MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT=ON
 */
 
+DROP TABLE IF EXISTS SampleData 
+CREATE TABLE SampleData
+(
+	ID					INT	IDENTITY(1,1),
+	SocialSecurity		VARCHAR(256),
+	Notes				VARCHAR(256),
+	StateID				CHAR(2),
+	WageRate			DECIMAL(18,2),
+	WorkHoursPerWeek	DECIMAL(18,2),
+	WeeklyPay AS WageRate * WorkHoursPerWeek PERSISTED
+) 
 
 IF OBJECT_ID('dbo.uspDoInsertsSetBased', 'P') IS NOT NULL
 BEGIN
@@ -321,4 +352,3 @@ SELECT ID, IsOptimized, Notes, DATEDIFF(ms, StartTime, EndTime) RunTimeMilliseco
 FROM dbo.MemoryOptimizedTableResults
 
 GO
-
