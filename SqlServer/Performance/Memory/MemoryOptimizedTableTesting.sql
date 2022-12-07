@@ -6,16 +6,11 @@ CREATE DATABASE TestDB
 GO
 USE TestDB
 GO
-IF OBJECT_ID('dbo.uspTestMemoryOptimizedTables', 'P') IS NOT NULL
-BEGIN
-	PRINT 'Recreating Procedure: dbo.uspTestMemoryOptimizedTables'
-	DROP PROCEDURE dbo.uspTestMemoryOptimizedTables 
-END
-GO
 
 /* You must have Memory optimized tables set up like the following, 
 Execute 
 
+	-- This is for SQL on a linux container or operating system. Alter the slash to \ if you want Windows
 	SELECT TOP 1 
 		physical_name,
 		SUBSTRING(physical_name,1,(LEN(reverse(physical_name)) - charindex('/',reverse(string_escape(physical_name, 'json'))))) AS BasePath
@@ -25,24 +20,14 @@ Execute
 		AND [type_desc] = 'ROWS'
 
 to get base path. 
-Use ctrl+m to replace the variables below
 
+
+*/
+
+--Use ctrl+m to replace the variables below
 ALTER DATABASE TestDB ADD FILEGROUP Testing_Mod CONTAINS MEMORY_OPTIMIZED_DATA
 ALTER DATABASE TestDB ADD FILE(name='Testing_mod1', filename='<path, NVARCHAR(520), >Testing_mod1') TO FILEGROUP Testing_Mod
 ALTER DATABASE TestDB SET MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT=ON
-*/
-
-DROP TABLE IF EXISTS SampleData 
-CREATE TABLE SampleData
-(
-	ID					INT	IDENTITY(1,1),
-	SocialSecurity		VARCHAR(256),
-	Notes				VARCHAR(256),
-	StateID				CHAR(2),
-	WageRate			DECIMAL(18,2),
-	WorkHoursPerWeek	DECIMAL(18,2),
-	WeeklyPay AS WageRate * WorkHoursPerWeek PERSISTED
-) 
 
 IF OBJECT_ID('dbo.uspDoInsertsSetBased', 'P') IS NOT NULL
 BEGIN
@@ -219,7 +204,7 @@ BEGIN
 	DROP PROCEDURE dbo.uspTestMemoryOptimizedTables
 END
 GO
-CREATE PROCEDURE dbo.uspTestMemoryOptimizedTables @IsOptimized BIT, @LoopCount INT
+CREATE PROCEDURE dbo.uspTestMemoryOptimizedTables @IsOptimized BIT, @LoopCount INT, @ShowReport BIT
 AS
 
 SET NOCOUNT ON
@@ -280,16 +265,16 @@ BEGIN
 	)
 END
 
-
+	
 
 
 ---- Record Iterative Insert Results
---SET @StartTime = GETDATE()
---exec dbo.uspDoInsertsIteratively @LoopCount
---SET @EndTime = GETDATE()
+SET @StartTime = GETDATE()
+exec dbo.uspDoInsertsIteratively @LoopCount
+SET @EndTime = GETDATE()
 
---INSERT INTO dbo.MemoryOptimizedTableResults(Notes, StartTime, EndTime, ParamValue, BatchExecutionTime, BatchID) 
---VALUES('Inserts: Iteratively', @StartTime, @EndTime, @LoopCount, @BatchExecutionTime, @BatchID)
+INSERT INTO dbo.MemoryOptimizedTableResults(Notes, StartTime, EndTime, ParamValue, BatchExecutionTime, BatchID, IsOptimized)  
+VALUES('Inserts: Iteratively', @StartTime, @EndTime, @LoopCount, @BatchExecutionTime, @BatchID, @IsOptimized)
 
 
 --DELETE dbo.SampleData
@@ -348,7 +333,10 @@ VALUES('Update: Set Based', @StartTime, @EndTime, @LoopCount, @BatchExecutionTim
 
 
 -- Report Results
-SELECT ID, IsOptimized, Notes, DATEDIFF(ms, StartTime, EndTime) RunTimeMilliseconds, StartTime, EndTime, ParamValue, BatchExecutionTime, BatchID 
-FROM dbo.MemoryOptimizedTableResults
-
+IF (@ShowReport)=1
+BEGIN
+	SELECT ID, IsOptimized, Notes, DATEDIFF(ms, StartTime, EndTime) RunTimeMilliseconds, StartTime, EndTime, ParamValue, BatchExecutionTime, BatchID 
+	FROM dbo.MemoryOptimizedTableResults
+END
 GO
+
