@@ -1,0 +1,1 @@
+select *, DATEDIFF(MILLISECOND,StartTime,EndTime) Milliseconds_Delta from dbo.MemoryOptimizedTableResults with(nolock) order by ID
