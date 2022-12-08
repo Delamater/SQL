@@ -70,30 +70,47 @@ BEGIN
 	DROP PROCEDURE dbo.uspDoInsertsIteratively
 END
 GO
+--CREATE PROCEDURE dbo.uspDoInsertsIteratively @LoopCount INT
+--AS
+
+--SET NOCOUNT ON
+
+--DECLARE @i INT
+--SET @i = 1
+
+--WHILE @i <= @LoopCount
+--BEGIN
+--	WITH
+--		Person AS (SELECT CHECKSUM(NEWID()) AS SocialSecurity, NEWID() AS Notes),
+--		States AS (SELECT SUBSTRING(CAST(NEWID() AS VARCHAR(100)),0,3) AS StateID)
+--	INSERT INTO SampleData(SocialSecurity, Notes, StateID)
+--	SELECT TOP 1 --1000000
+--		Person.SocialSecurity,
+--		Person.Notes,
+--		States.StateID
+--	--INTO #
+--	FROM Person 
+--		CROSS JOIN States 
+--		CROSS JOIN sys.columns 
+--		CROSS JOIN sys.objects
+
+--	SET @i+= 1
+--END
+--GO
+
 CREATE PROCEDURE dbo.uspDoInsertsIteratively @LoopCount INT
 AS
 
 SET NOCOUNT ON
 
-DECLARE @i INT
+DECLARE @i INT, @SocSec VARCHAR(256) = '123456789', @Notes VARCHAR(256) = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', @StateID CHAR(2) = 'CA'
 SET @i = 1
 
 WHILE @i <= @LoopCount
 BEGIN
-	WITH
-		Person AS (SELECT CHECKSUM(NEWID()) AS SocialSecurity, NEWID() AS Notes),
-		States AS (SELECT SUBSTRING(CAST(NEWID() AS VARCHAR(100)),0,3) AS StateID)
-	INSERT INTO SampleData(SocialSecurity, Notes, StateID)
-	SELECT TOP 1 --1000000
-		Person.SocialSecurity,
-		Person.Notes,
-		States.StateID
-	--INTO #
-	FROM Person 
-		CROSS JOIN States 
-		CROSS JOIN sys.columns 
-		CROSS JOIN sys.objects
 
+	INSERT INTO SampleData(SocialSecurity, Notes, StateID)
+	VALUES(@SocSec, @Notes, @StateID)
 	SET @i+= 1
 END
 GO
