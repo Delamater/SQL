@@ -2,9 +2,9 @@
 -- Dependency: CreateSampleData2 procedure from script CreateTable.sql
 USE TestDB
 GO
-EXEC CreateSampleData2 @IsOptimized = 1
+EXEC dbo.CreateSampleData2 @IsHeap = 1
 
-SELECT NAME, OBJECTPROPERTY(object_id,'TableIsMemoryOptimized') IsMemoryOptimized, * FROM sys.tables WHERE name IN('SampleData2', 'SampleData_SCHEMA_AND_DATA', 'SampleData_SCHEMA_ONLY')
+SELECT NAME, OBJECTPROPERTY(object_id,'TableIsMemoryOptimized') IsMemoryOptimized FROM sys.tables WHERE name IN('SampleData2', 'SampleData_SCHEMA_AND_DATA', 'SampleData_SCHEMA_ONLY')
 
 BEGIN TRY
 	BEGIN TRAN
