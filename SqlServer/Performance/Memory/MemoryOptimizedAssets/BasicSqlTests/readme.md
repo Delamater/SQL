@@ -1,0 +1,1 @@
+CreateTable.sql is used for all tests under the BasicSqlTests folder
