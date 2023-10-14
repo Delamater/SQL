@@ -1,4 +1,10 @@
-CREATE EVENT SESSION [Performance Data FAST NONE] ON SERVER 
+IF EXISTS (SELECT name FROM sys.server_event_sessions WHERE name = 'Performance_Data_FAST_NONE')
+BEGIN
+	DROP EVENT SESSION Performance_Data_FAST_NONE ON SERVER
+END
+GO
+
+CREATE EVENT SESSION [Performance_Data_FAST_NONE] ON SERVER 
 ADD EVENT sqlserver.additional_memory_grant(
     ACTION(sqlserver.username)),
 ADD EVENT sqlserver.attention(
