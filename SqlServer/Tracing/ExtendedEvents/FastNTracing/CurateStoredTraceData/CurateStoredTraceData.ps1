@@ -290,13 +290,22 @@ function New-View{
     $tsql = @"
 DROP VIEW IF EXISTS dbo.v$table_or_view
 GO
-CREATE VIEW dbo.v$table_or_view AS
+
+-- WITH OPTION FAST
+CREATE VIEW dbo.v$table_or_view_f AS
 SELECT *       
-    -- name, timestamp, username, session_id, database_id, duration, options, options_text, database_name, client_app_name, client_hostname, cpu_time, nt_username, physical_reads, logical_reads, writes, spills, 
-    -- row_count, result, application_name, plan_handle, object_name, estimated_rows, estimated_cost, requested_memory_kb, used_memory_kb, ideal_memory_kb, granted_memory_kb, dop, last_row_count, statement, 
-    -- error_number, message, SelectPosition, WherePosition, OrderByPosition, SelectList, WhereClause, OrderByClause
 FROM            $table_or_view
-WHERE        (SelectPosition > 0)
+WHERE        
+    (SelectPosition > 0)
+    AND f.FastPosition IS NOT NULL
+
+-- SANS OPTION FAST
+CREATE VIEW dbo.v$table_or_view_sf AS
+SELECT *       
+FROM            $table_or_view
+WHERE        
+    (SelectPosition > 0)
+    AND f.FastPosition IS NULL
     
 "@
 
