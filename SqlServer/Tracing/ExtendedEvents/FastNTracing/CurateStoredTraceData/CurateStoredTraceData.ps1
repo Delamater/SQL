@@ -5,6 +5,8 @@ param(
 )
 
 enum Step{
+    InitializeScript
+    CreateViewsWithNewData
     Step1
     Step2
     Step3
@@ -12,6 +14,8 @@ enum Step{
 
 # Define the steps descriptions
 $stepDescriptions = [ordered]@{
+    InitializeScript                    = "Initialize Script"
+    CreateViewsWithNewData              = "Add columns to base table and create view"
     Step1                   = "Step1 Desc"
     Step2                   = "Step2 Desc"
     Step3                   = "Step3 Desc"
@@ -28,10 +32,6 @@ enum LogMessageType{
     Warning
     Error
     Debug
-}
-
-function Register-ExtendedEvents{
-
 }
 
 function Get-Config{
@@ -62,11 +62,10 @@ function Install-ExtendedEventTraces{
 function Get-ExtendedEventData{
     param(
         [parameter(Mandatory=$true)]$config,
-        [parameter(Mandatory=$true)][string]$table_or_view,
-        [parameter(Mandatory=$true)][string]$output_file
+        [parameter(Mandatory=$true)][string]$table_or_view
     )
 
-    return Execute-Query -config $config -query "SELECT TOP 100 * FROM $table_or_view" -OutputAs DataTables 
+    return Execute-Query -config $config -query "SELECT * FROM $table_or_view" -OutputAs DataTables 
 }
 
 function Convert-ExportToExcelWorkbook{
@@ -88,18 +87,18 @@ function Convert-ExportToExcelWorkbook{
     $excel.Quit()
 }
 
-function Export-ExtendedEventData{
+function Export-DataTableToCsv{
     param(
         [parameter(Mandatory=$true)]$output_file,
         [parameter(Mandatory=$true)][object]$data_table
     )
 
-    $data_table | Export-Csv -Path $output_file -NoTypeInformation
+    $data_table | Export-Csv -Path $output_file -NoTypeInformation 
 
-    Convert-ExportToExcelWorkbook -output_file $output_file
+    # Convert-ExportToExcelWorkbook -output_file $output_file
 
     #Clean up
-    Remove-Item -Path $output_file
+    # Remove-Item -Path $output_file
 }
 
 function Execute-Query{
@@ -109,7 +108,7 @@ function Execute-Query{
         [Parameter(Mandatory=$true)][validateset('DataRows', 'DataSet', 'DataTables')]$OutputAs
     )
 
-    return Invoke-Sqlcmd -ServerInstance $config.ServerName -Username $config.Username -Password $config.Password -Database $config.DatabaseName -Query $query -OutputAs $OutputAs -OutputSqlErrors $true -IncludeSqlUserErrors
+    return Invoke-Sqlcmd -ServerInstance $config.ServerName -Username $config.Username -Password $config.Password -Database $config.DatabaseName -Query $query -OutputAs $OutputAs -OutputSqlErrors $true -IncludeSqlUserErrors -ErrorAction Stop
 
 }
 
@@ -120,12 +119,13 @@ function Execute-QueryFile{
         [Parameter(Mandatory=$true)][validateset('DataRows', 'DataSet', 'DataTables')]$OutputAs
     )
 
-    return Invoke-Sqlcmd -ServerInstance $config.ServerName -Username $config.Username -Password $config.Password -Database $config.DatabaseName -InputFile $queryFile -OutputAs $OutputAs -OutputSqlErrors $true -IncludeSqlUserErrors
+    return Invoke-Sqlcmd -ServerInstance $config.ServerName -Username $config.Username -Password $config.Password -Database $config.DatabaseName -InputFile $queryFile -OutputAs $OutputAs -OutputSqlErrors $true -IncludeSqlUserErrors -ErrorAction Stop
 
 }
 
 function Initialize() {
     $Error.Clear()
+    $gStepTracker.SetStep([Step]::Step1, [Status]::InProgress)
     Set-Variable -Name "gScriptName"                -Value (Get-Item $PSCommandPath).BaseName                                                                   -Scope Global
     Set-Variable -Name "gBaseDir"                   -Value (Get-Item $PSCommandPath).Directory.FullName                                                         -Scope Global
     Set-Variable -Name "gStartDatetime"             -Value (Get-Date -Format yyyy_MM_dd_HH_mm_ss_fff)                                                           -Scope Global
@@ -133,7 +133,7 @@ function Initialize() {
     Set-Variable -Name "gScriptConfigPath"          -Value "$(Join-Path -Path (Get-Item $gScriptFullPath).Directory.FullName -ChildPath $gScriptName).config"   -Scope Global
     Set-Variable -Name "gLogFilePath"               -Value $PSScriptRoot                                                                                        -Scope Global
     Set-Variable -Name "gLogFullPath"               -Value (Join-Path -Path $gLogFilePath -ChildPath "$($gScriptName).$($gStartDatetime).log")                  -Scope Global
-    Set-Variable -Name "gTraceDefinitionsDir"       -Value (Resolve-Path -Path (Join-Path -Path $gScriptConfigPath -ChildPath "../../TraceDefinitions"))        -Scope Global
+    Set-Variable -Name "gAssetsFolder"              -Value (Resolve-Path -Path (Join-Path -Path $gScriptConfigPath -ChildPath "../../Assets"))                  -Scope Global
 
     # Set up the logger as quickly as possible
     Write-LogPreamble -logFullPath $gLogFullPath
@@ -151,12 +151,152 @@ function Initialize() {
     $kWarnBeforeStart = @"
 "@
 
-    Set-Variable -Name "gkWarnBBeforeStart"         -Value $kWarnBeforeStart                                                                        -Scope Global
+    Set-Variable -Name "gkWarnBBeforeStart"         -Value $kWarnBeforeStart                                                                                    -Scope Global
 
     Write-TraceWithTimestamp -logFullPath $gLogFullPath -message "Initialize() complete" -LogMessageType Info
+    $gStepTracker.SetStep([Step]::Step1, [Status]::Completed)
     
 }
 
+function Add-ColumnsToTable{
+    param(
+        [Parameter(Mandatory=$true)][string]$table_or_view
+    )
+
+    $tsql = @"
+IF COL_LENGTH('dbo.$table_or_view', 'SelectPosition') IS NOT NULL ALTER TABLE dbo.$table_or_view DROP COLUMN SelectPosition;
+IF COL_LENGTH('dbo.$table_or_view', 'WherePosition') IS NOT NULL ALTER TABLE dbo.$table_or_view DROP COLUMN WherePosition;
+IF COL_LENGTH('dbo.$table_or_view', 'OrderByPosition') IS NOT NULL ALTER TABLE dbo.$table_or_view DROP COLUMN OrderByPosition;
+IF COL_LENGTH('dbo.$table_or_view', 'SelectList') IS NOT NULL ALTER TABLE dbo.$table_or_view DROP COLUMN SelectList;
+IF COL_LENGTH('dbo.$table_or_view', 'WhereClause') IS NOT NULL ALTER TABLE dbo.$table_or_view DROP COLUMN WhereClause;
+IF COL_LENGTH('dbo.$table_or_view', 'OrderByClause') IS NOT NULL ALTER TABLE dbo.$table_or_view DROP COLUMN OrderByClause;
+
+
+-- Add columns we need for analysis
+ALTER TABLE dbo.$table_or_view ADD SelectPosition INT
+ALTER TABLE dbo.$table_or_view ADD WherePosition INT
+ALTER TABLE dbo.$table_or_view ADD OrderByPosition INT
+ALTER TABLE dbo.$table_or_view ADD SelectList NVARCHAR(MAX)
+ALTER TABLE dbo.$table_or_view ADD WhereClause NVARCHAR(MAX)
+ALTER TABLE dbo.$table_or_view ADD OrderByClause NVARCHAR(MAX)    
+"@
+
+    return $tsql
+}
+
+function Update-AddedColumns{
+    param(
+        [Parameter(Mandatory=$true)][string]$table_or_view
+    )
+
+    $tsql = @"
+BEGIN TRY
+BEGIN TRAN
+
+-- Get some meta data about the position of key statement constructs
+UPDATE dbo.$table_or_view
+SET SelectPosition = CHARINDEX('select', lower([statement])),
+    WherePosition = CHARINDEX('where', lower([statement])),
+    OrderByPosition = CHARINDEX('order by', lower([statement]))
+FROM dbo.$table_or_view
+
+-- SET SelectList
+UPDATE dbo.$table_or_view
+SET SelectList = SUBSTRING(statement, SelectPosition, WherePosition)
+FROM dbo.$table_or_view
+WHERE SelectPosition > 0 AND WherePosition > 0 
+
+-- SET SelectList without WhereClause
+UPDATE dbo.$table_or_view
+SET SelectList = SUBSTRING(statement, SelectPosition, LEN(statement))
+FROM dbo.$table_or_view
+WHERE SelectPosition > 0 AND WherePosition = 0 AND SelectList IS NULL 
+
+-- SET where clause
+UPDATE dbo.$table_or_view
+SET 
+    WhereClause = SUBSTRING(statement, WherePosition, OrderByPosition)
+FROM dbo.$table_or_view
+WHERE WherePosition > 0 AND OrderByPosition > 0
+
+-- SET WhereClause without OrderBy
+UPDATE dbo.$table_or_view
+SET 
+    WhereClause = SUBSTRING(statement, WherePosition, LEN(statement))
+FROM dbo.$table_or_view
+WHERE WherePosition > 0 AND OrderByPosition = 0 AND WhereClause IS NULL
+
+-- Update order by clause 
+UPDATE dbo.$table_or_view
+SET 
+    OrderByClause = SUBSTRING(statement, OrderByPosition, LEN(statement))
+FROM dbo.$table_or_view
+WHERE OrderByPosition > 0	
+
+IF EXISTS(
+    SELECT 1
+        --statement, SelectPosition, WherePosition, OrderByPosition, name, SelectList, WhereClause, OrderByClause
+    FROM dbo.$table_or_view
+    WHERE 
+        (SelectPosition > 0 AND SelectList IS NULL) OR
+        (WherePosition > 0 AND WhereClause IS NULL) OR
+        (OrderByPosition > 0 AND OrderByClause IS NULL)
+)
+BEGIN
+    THROW 51000, 'Not all of the statements were parsed properly during the statement parsing phase', 1
+END
+
+COMMIT TRAN
+END TRY
+BEGIN CATCH
+    SELECT ERROR_LINE(), ERROR_NUMBER(), ERROR_MESSAGE(), ERROR_PROCEDURE(), ERROR_SEVERITY(), ERROR_STATE()
+    ROLLBACK
+END CATCH
+"@
+    return $tsql
+}
+
+function New-View{
+    param(
+        [Parameter(Mandatory=$true)][string]$table_or_view
+    )
+
+    $tsql = @"
+DROP VIEW IF EXISTS dbo.v$table_or_view
+GO
+CREATE VIEW dbo.v$table_or_view AS
+SELECT        name, timestamp, username, session_id, database_id, duration, options, options_text, database_name, client_app_name, client_hostname, cpu_time, nt_username, physical_reads, logical_reads, writes, spills, 
+                            row_count, result, application_name, plan_handle, object_name, estimated_rows, estimated_cost, requested_memory_kb, used_memory_kb, ideal_memory_kb, granted_memory_kb, dop, last_row_count, statement, 
+                            error_number, message, SelectPosition, WherePosition, OrderByPosition, SelectList, WhereClause, OrderByClause
+FROM            $table_or_view
+WHERE        (SelectPosition > 0)
+    
+"@
+
+    return $tsql
+}
+
+
+function New-ViewsWithNewData{
+    param(
+        [Parameter(Mandatory=$true)]$config
+    )
+
+    $gStepTracker.SetStep([Step]::CreateViewsWithNewData, [Status]::InProgress)
+    $config.DataTablesToExport | ForEach-Object {
+        $full_sql = @"
+$(Add-ColumnsToTable -table_or_view $_)
+$(Update-AddedColumns -table_or_view $_)
+$(New-View -table_or_view $_)
+"@
+
+        # we throw away the results, an error would be trapped if there was one
+        Write-TraceWithTimestamp -logFullPath $gLogFullPath -message $full_sql -logMessageType Info 
+        Execute-Query -config $config -query $full_sql -OutputAs DataTables
+        
+        $gStepTracker.SetStep([Step]::CreateViewsWithNewData, [Status]::Completed)
+    }
+}
 
 try {
 
@@ -167,20 +307,18 @@ try {
     Initialize 
     $config = Get-Config -file_path $gScriptConfigPath
 
-    $gStepTracker.SetStep([Step]::Step1, [Status]::InProgress)
-        
-    # $cnn = Get-SqlConnection -config $config 
-    # $cred = Get-SqlCredential -config $config 
-    # $results = Invoke-DbaQuery -SqlInstance $config.ServerName -Database $config.DatabaseName -Query "Select 123" -CommandType Text -SqlCredential $cred -ErrorAction Stop -MessagesToOutput 
-    $results = Execute-Query -config $config -query "Select 123" -OutputAs DataRows
-    
+    New-ViewsWithNewData -config $config        
 
     # Install extended events if asked to do so
     if ($install_extended_events){
-        Install-ExtendedEventTraces -config $config -trace_definitions_path $gTraceDefinitionsDir 
+        Install-ExtendedEventTraces -config $config -trace_definitions_path $gAssetsFolder 
     }
 
-    Export-ExtendedEventData -output_file (Join-Path -Path $gBaseDir -ChildPath "SomeFile.csv") -data_table (Execute-Query -config $config -query "SELECT * FROM ExampleTrace1" -OutputAs DataTables)
+    $config.DataTablesToExport | ForEach-Object{
+        $tv = $_
+        Export-DataTableToCsv -output_file (Join-Path -Path $gBaseDir -ChildPath "$($_).csv") -data_table (Get-ExtendedEventData -config $config -table_or_view "dbo.v$($tv)")
+    }
+    
 
     # Get data from extended events into 3 tables
     # FastDefault
@@ -201,6 +339,7 @@ catch {
 finally {
     $gStopWatch.Stop()
     $gEndDatetime = Get-Date -Format yyyy_MM_dd_HH_mm_ss_fff
+    [System.Data.SqlClient.SqlConnection]::ClearAllPools()
     Add-Content -Path $gLogFullPath -Value "$(Get-CRLF)$(Get-CRLF)$(Build-LogSuffix)" -ErrorAction Stop    
 
     Write-Host "Procedure complete: $gLogFullPath" -ForegroundColor DarkYellow
