@@ -170,15 +170,21 @@ IF COL_LENGTH('dbo.$table_or_view', 'OrderByPosition') IS NOT NULL ALTER TABLE d
 IF COL_LENGTH('dbo.$table_or_view', 'SelectList') IS NOT NULL ALTER TABLE dbo.$table_or_view DROP COLUMN SelectList;
 IF COL_LENGTH('dbo.$table_or_view', 'WhereClause') IS NOT NULL ALTER TABLE dbo.$table_or_view DROP COLUMN WhereClause;
 IF COL_LENGTH('dbo.$table_or_view', 'OrderByClause') IS NOT NULL ALTER TABLE dbo.$table_or_view DROP COLUMN OrderByClause;
+IF COL_LENGTH('dbo.$table_or_view', 'FastPosition') IS NOT NULL ALTER TABLE dbo.$table_or_view DROP COLUMN FastPosition;
+IF COL_LENGTH('dbo.$table_or_view', 'FastValue') IS NOT NULL ALTER TABLE dbo.$table_or_view DROP COLUMN FastValue;
+
 
 
 -- Add columns we need for analysis
 ALTER TABLE dbo.$table_or_view ADD SelectPosition INT
 ALTER TABLE dbo.$table_or_view ADD WherePosition INT
 ALTER TABLE dbo.$table_or_view ADD OrderByPosition INT
+ALTER TABLE dbo.$table_or_view ADD FastPosition NVARCHAR(MAX)    
+ALTER TABLE dbo.$table_or_view ADD FastValue NVARCHAR(MAX)    
 ALTER TABLE dbo.$table_or_view ADD SelectList NVARCHAR(MAX)
 ALTER TABLE dbo.$table_or_view ADD WhereClause NVARCHAR(MAX)
 ALTER TABLE dbo.$table_or_view ADD OrderByClause NVARCHAR(MAX)    
+
 "@
 
     return $tsql
@@ -233,6 +239,26 @@ SET
 FROM dbo.$table_or_view
 WHERE OrderByPosition > 0	
 
+-- Set FastPosition and FastValue
+UPDATE dbo.$table_or_view
+SET FastPosition = 
+	CASE
+		WHEN CHARINDEX('Option (FAST', statement) > 0 THEN
+			CHARINDEX('Option (FAST', statement) + LEN('Option (FAST') 
+		ELSE
+			NULL
+	END,
+	FastValue = 
+	CASE 
+		WHEN CHARINDEX('Option (FAST', statement) > 0 THEN
+            CAST(SUBSTRING(statement, CHARINDEX('Option (FAST', statement) + LEN('Option (FAST'), 
+            CHARINDEX(')', statement, CHARINDEX('Option (FAST', statement)) - (CHARINDEX('Option (FAST', statement) + LEN('Option (FAST'))) AS INT)			
+		ELSE
+			NULL
+	END
+FROM dbo.$table_or_view
+WHERE SelectPosition > 0
+
 IF EXISTS(
     SELECT 1
         --statement, SelectPosition, WherePosition, OrderByPosition, name, SelectList, WhereClause, OrderByClause
@@ -265,9 +291,10 @@ function New-View{
 DROP VIEW IF EXISTS dbo.v$table_or_view
 GO
 CREATE VIEW dbo.v$table_or_view AS
-SELECT        name, timestamp, username, session_id, database_id, duration, options, options_text, database_name, client_app_name, client_hostname, cpu_time, nt_username, physical_reads, logical_reads, writes, spills, 
-                            row_count, result, application_name, plan_handle, object_name, estimated_rows, estimated_cost, requested_memory_kb, used_memory_kb, ideal_memory_kb, granted_memory_kb, dop, last_row_count, statement, 
-                            error_number, message, SelectPosition, WherePosition, OrderByPosition, SelectList, WhereClause, OrderByClause
+SELECT *       
+    -- name, timestamp, username, session_id, database_id, duration, options, options_text, database_name, client_app_name, client_hostname, cpu_time, nt_username, physical_reads, logical_reads, writes, spills, 
+    -- row_count, result, application_name, plan_handle, object_name, estimated_rows, estimated_cost, requested_memory_kb, used_memory_kb, ideal_memory_kb, granted_memory_kb, dop, last_row_count, statement, 
+    -- error_number, message, SelectPosition, WherePosition, OrderByPosition, SelectList, WhereClause, OrderByClause
 FROM            $table_or_view
 WHERE        (SelectPosition > 0)
     
