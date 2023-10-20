@@ -125,7 +125,7 @@ function Execute-QueryFile{
 
 function Initialize() {
     $Error.Clear()
-    $gStepTracker.SetStep([Step]::Step1, [Status]::InProgress)
+
     Set-Variable -Name "gScriptName"                -Value (Get-Item $PSCommandPath).BaseName                                                                   -Scope Global
     Set-Variable -Name "gBaseDir"                   -Value (Get-Item $PSCommandPath).Directory.FullName                                                         -Scope Global
     Set-Variable -Name "gStartDatetime"             -Value (Get-Date -Format yyyy_MM_dd_HH_mm_ss_fff)                                                           -Scope Global
@@ -140,11 +140,14 @@ function Initialize() {
     Add-Content -Value (Get-TitleHeader -repeatedCharacter "#" -totalLength (Get-TitleHeaderLength) -titleValue " Script Results: Start ") -Path $gLogFullPath
 
     Set-Variable -Name "gStepTracker"               -Value $null                                                                                                -Scope Global
+    Set-Variable -Name "gStepTracker"               -Value (New-Tracker -StepDescriptions $stepDescriptions)                                                    -Scope Global
+    $gStepTracker.SetStep([Step]::InitializeScript, [Status]::InProgress)
+    
     Set-Variable -Name "gErrMsg"                    -Value $null                                                                                                -Scope Global
     Set-Variable -Name "gScriptStackTrace"          -Value $null                                                                                                -Scope Global
     Set-Variable -Name "gStopWatch"                 -Value ([System.Diagnostics.Stopwatch]::StartNew())                                                         -Scope Global
     Set-Variable -Name "gSelectedInstance"          -Value $null                                                                                                -Scope Global
-    Set-Variable -Name "gStepTracker"               -Value (New-Tracker -StepDescriptions $stepDescriptions)                                                    -Scope Global
+    
     Set-Variable -Name "gSilentMode"                -Value $null                                                                                                -Scope Global
     
     # Warnings
@@ -154,7 +157,7 @@ function Initialize() {
     Set-Variable -Name "gkWarnBBeforeStart"         -Value $kWarnBeforeStart                                                                                    -Scope Global
 
     Write-TraceWithTimestamp -logFullPath $gLogFullPath -message "Initialize() complete" -LogMessageType Info
-    $gStepTracker.SetStep([Step]::Step1, [Status]::Completed)
+    $gStepTracker.SetStep([Step]::InitializeScript, [Status]::Completed)
     
 }
 
@@ -164,26 +167,26 @@ function Add-ColumnsToTable{
     )
 
     $tsql = @"
-IF COL_LENGTH('dbo.$table_or_view', 'SelectPosition') IS NOT NULL ALTER TABLE dbo.$table_or_view DROP COLUMN SelectPosition;
-IF COL_LENGTH('dbo.$table_or_view', 'WherePosition') IS NOT NULL ALTER TABLE dbo.$table_or_view DROP COLUMN WherePosition;
-IF COL_LENGTH('dbo.$table_or_view', 'OrderByPosition') IS NOT NULL ALTER TABLE dbo.$table_or_view DROP COLUMN OrderByPosition;
-IF COL_LENGTH('dbo.$table_or_view', 'SelectList') IS NOT NULL ALTER TABLE dbo.$table_or_view DROP COLUMN SelectList;
-IF COL_LENGTH('dbo.$table_or_view', 'WhereClause') IS NOT NULL ALTER TABLE dbo.$table_or_view DROP COLUMN WhereClause;
-IF COL_LENGTH('dbo.$table_or_view', 'OrderByClause') IS NOT NULL ALTER TABLE dbo.$table_or_view DROP COLUMN OrderByClause;
-IF COL_LENGTH('dbo.$table_or_view', 'FastPosition') IS NOT NULL ALTER TABLE dbo.$table_or_view DROP COLUMN FastPosition;
-IF COL_LENGTH('dbo.$table_or_view', 'FastValue') IS NOT NULL ALTER TABLE dbo.$table_or_view DROP COLUMN FastValue;
+IF COL_LENGTH('$table_or_view', 'SelectPosition') IS NOT NULL ALTER TABLE $table_or_view DROP COLUMN SelectPosition;
+IF COL_LENGTH('$table_or_view', 'WherePosition') IS NOT NULL ALTER TABLE $table_or_view DROP COLUMN WherePosition;
+IF COL_LENGTH('$table_or_view', 'OrderByPosition') IS NOT NULL ALTER TABLE $table_or_view DROP COLUMN OrderByPosition;
+IF COL_LENGTH('$table_or_view', 'SelectList') IS NOT NULL ALTER TABLE $table_or_view DROP COLUMN SelectList;
+IF COL_LENGTH('$table_or_view', 'WhereClause') IS NOT NULL ALTER TABLE $table_or_view DROP COLUMN WhereClause;
+IF COL_LENGTH('$table_or_view', 'OrderByClause') IS NOT NULL ALTER TABLE $table_or_view DROP COLUMN OrderByClause;
+IF COL_LENGTH('$table_or_view', 'FastPosition') IS NOT NULL ALTER TABLE $table_or_view DROP COLUMN FastPosition;
+IF COL_LENGTH('$table_or_view', 'FastValue') IS NOT NULL ALTER TABLE $table_or_view DROP COLUMN FastValue;
 
 
 
 -- Add columns we need for analysis
-ALTER TABLE dbo.$table_or_view ADD SelectPosition INT
-ALTER TABLE dbo.$table_or_view ADD WherePosition INT
-ALTER TABLE dbo.$table_or_view ADD OrderByPosition INT
-ALTER TABLE dbo.$table_or_view ADD FastPosition NVARCHAR(MAX)    
-ALTER TABLE dbo.$table_or_view ADD FastValue NVARCHAR(MAX)    
-ALTER TABLE dbo.$table_or_view ADD SelectList NVARCHAR(MAX)
-ALTER TABLE dbo.$table_or_view ADD WhereClause NVARCHAR(MAX)
-ALTER TABLE dbo.$table_or_view ADD OrderByClause NVARCHAR(MAX)    
+ALTER TABLE $table_or_view ADD SelectPosition INT
+ALTER TABLE $table_or_view ADD WherePosition INT
+ALTER TABLE $table_or_view ADD OrderByPosition INT
+ALTER TABLE $table_or_view ADD FastPosition NVARCHAR(MAX)    
+ALTER TABLE $table_or_view ADD FastValue NVARCHAR(MAX)    
+ALTER TABLE $table_or_view ADD SelectList NVARCHAR(MAX)
+ALTER TABLE $table_or_view ADD WhereClause NVARCHAR(MAX)
+ALTER TABLE $table_or_view ADD OrderByClause NVARCHAR(MAX)    
 
 "@
 
@@ -200,47 +203,47 @@ BEGIN TRY
 BEGIN TRAN
 
 -- Get some meta data about the position of key statement constructs
-UPDATE dbo.$table_or_view
+UPDATE $table_or_view
 SET SelectPosition = CHARINDEX('select', lower([statement])),
     WherePosition = CHARINDEX('where', lower([statement])),
     OrderByPosition = CHARINDEX('order by', lower([statement]))
-FROM dbo.$table_or_view
+FROM $table_or_view
 
 -- SET SelectList
-UPDATE dbo.$table_or_view
+UPDATE $table_or_view
 SET SelectList = SUBSTRING(statement, SelectPosition, WherePosition)
-FROM dbo.$table_or_view
+FROM $table_or_view
 WHERE SelectPosition > 0 AND WherePosition > 0 
 
 -- SET SelectList without WhereClause
-UPDATE dbo.$table_or_view
+UPDATE $table_or_view
 SET SelectList = SUBSTRING(statement, SelectPosition, LEN(statement))
-FROM dbo.$table_or_view
+FROM $table_or_view
 WHERE SelectPosition > 0 AND WherePosition = 0 AND SelectList IS NULL 
 
 -- SET where clause
-UPDATE dbo.$table_or_view
+UPDATE $table_or_view
 SET 
     WhereClause = SUBSTRING(statement, WherePosition, OrderByPosition)
-FROM dbo.$table_or_view
+FROM $table_or_view
 WHERE WherePosition > 0 AND OrderByPosition > 0
 
 -- SET WhereClause without OrderBy
-UPDATE dbo.$table_or_view
+UPDATE $table_or_view
 SET 
     WhereClause = SUBSTRING(statement, WherePosition, LEN(statement))
-FROM dbo.$table_or_view
+FROM $table_or_view
 WHERE WherePosition > 0 AND OrderByPosition = 0 AND WhereClause IS NULL
 
 -- Update order by clause 
-UPDATE dbo.$table_or_view
+UPDATE $table_or_view
 SET 
     OrderByClause = SUBSTRING(statement, OrderByPosition, LEN(statement))
-FROM dbo.$table_or_view
+FROM $table_or_view
 WHERE OrderByPosition > 0	
 
 -- Set FastPosition and FastValue
-UPDATE dbo.$table_or_view
+UPDATE $table_or_view
 SET FastPosition = 
 	CASE
 		WHEN CHARINDEX('Option (FAST', statement) > 0 THEN
@@ -256,13 +259,13 @@ SET FastPosition =
 		ELSE
 			NULL
 	END
-FROM dbo.$table_or_view
+FROM $table_or_view
 WHERE SelectPosition > 0
 
 IF EXISTS(
     SELECT 1
         --statement, SelectPosition, WherePosition, OrderByPosition, name, SelectList, WhereClause, OrderByClause
-    FROM dbo.$table_or_view
+    FROM $table_or_view
     WHERE 
         (SelectPosition > 0 AND SelectList IS NULL) OR
         (WherePosition > 0 AND WhereClause IS NULL) OR
@@ -286,27 +289,26 @@ function New-View{
     param(
         [Parameter(Mandatory=$true)][string]$table_or_view
     )
+    
+    # Add a "v" in front of the table name for views
+    $view_name = $table_or_view -replace '^(.*?)\.', '$1.v'
 
     $tsql = @"
-DROP VIEW IF EXISTS dbo.v$table_or_view
+DROP VIEW IF EXISTS $($view_name)
 GO
 
--- WITH OPTION FAST
-CREATE VIEW dbo.v$table_or_view_f AS
-SELECT *       
-FROM            $table_or_view
-WHERE        
-    (SelectPosition > 0)
-    AND f.FastPosition IS NOT NULL
 
--- SANS OPTION FAST
-CREATE VIEW dbo.v$table_or_view_sf AS
-SELECT *       
-FROM            $table_or_view
+CREATE VIEW $($view_name) AS
+SELECT 
+    name, timestamp, [error_number], username, database_name, 
+    options_text, client_app_name,object_name,cpu_time, duration, physical_reads, 
+    logical_reads, writes, spills, row_count, result, 
+    statement, SelectPosition, WherePosition, OrderByPosition, 
+    FastPosition, FastValue, SelectList, WhereClause, OrderByClause         
+FROM            $($table_or_view)
 WHERE        
-    (SelectPosition > 0)
-    AND f.FastPosition IS NULL
-    
+    (SelectPosition > 0)    
+    AND name = 'sp_statement_completed'
 "@
 
     return $tsql
@@ -320,18 +322,21 @@ function New-ViewsWithNewData{
 
     $gStepTracker.SetStep([Step]::CreateViewsWithNewData, [Status]::InProgress)
     $config.DataTablesToExport | ForEach-Object {
+
         $full_sql = @"
 $(Add-ColumnsToTable -table_or_view $_)
+GO
 $(Update-AddedColumns -table_or_view $_)
+GO
 $(New-View -table_or_view $_)
 "@
 
         # we throw away the results, an error would be trapped if there was one
         Write-TraceWithTimestamp -logFullPath $gLogFullPath -message $full_sql -logMessageType Info 
         Execute-Query -config $config -query $full_sql -OutputAs DataTables
-        
-        $gStepTracker.SetStep([Step]::CreateViewsWithNewData, [Status]::Completed)
     }
+
+    $gStepTracker.SetStep([Step]::CreateViewsWithNewData, [Status]::Completed)    
 }
 
 try {
@@ -344,7 +349,7 @@ try {
     $config = Get-Config -file_path $gScriptConfigPath
 
     New-ViewsWithNewData -config $config        
-
+return
     # Install extended events if asked to do so
     if ($install_extended_events){
         Install-ExtendedEventTraces -config $config -trace_definitions_path $gAssetsFolder 
@@ -378,8 +383,13 @@ finally {
     [System.Data.SqlClient.SqlConnection]::ClearAllPools()
     Add-Content -Path $gLogFullPath -Value "$(Get-CRLF)$(Get-CRLF)$(Build-LogSuffix)" -ErrorAction Stop    
 
-    Write-Host "Procedure complete: $gLogFullPath" -ForegroundColor DarkYellow
-
-    # Set operating system ERRORLEVEL so that batch scripting knows when there is a failure. Non-zero is an error. 
-    exit (![string]::IsNullOrWhiteSpace($gErrMsg)) ? 1 : 0
+    if (![string]::IsNullOrWhiteSpace($gErrMsg)){
+        Write-Host "Procedure ended in error, please check the log" -ForegroundColor DarkRed
+        Write-Host "Procedure complete: $gLogFullPath" -ForegroundColor DarkRed
+        exit 1
+    }else{
+        Write-Host "Procedure complete: $gLogFullPath" -ForegroundColor DarkYellow
+        exit 0
+    }
+    
 }
