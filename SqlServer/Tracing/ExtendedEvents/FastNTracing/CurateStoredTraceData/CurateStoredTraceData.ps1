@@ -8,19 +8,15 @@ enum Step{
     InitializeScript
     EditTablesWithNewData
     CreateViews
-    Step1
-    Step2
-    Step3
+    CreateIndexes
 }
 
 # Define the steps descriptions
 $stepDescriptions = [ordered]@{
     InitializeScript                    = "Initialize Script"
     EditTablesWithNewData               = "Edits tables to create new data needed for analysis"
-    CreateViews              = "Creates necessary views"
-    Step1                   = "Step1 Desc"
-    Step2                   = "Step2 Desc"
-    Step3                   = "Step3 Desc"
+    CreateViews                         = "Creates necessary views"
+    CreateIndexes                       = "Creating indexes"
 }
 
 enum Status{
@@ -177,18 +173,24 @@ IF COL_LENGTH('$table_or_view', 'WhereClause') IS NOT NULL ALTER TABLE $table_or
 IF COL_LENGTH('$table_or_view', 'OrderByClause') IS NOT NULL ALTER TABLE $table_or_view DROP COLUMN OrderByClause;
 IF COL_LENGTH('$table_or_view', 'FastPosition') IS NOT NULL ALTER TABLE $table_or_view DROP COLUMN FastPosition;
 IF COL_LENGTH('$table_or_view', 'FastValue') IS NOT NULL ALTER TABLE $table_or_view DROP COLUMN FastValue;
+IF COL_LENGTH('$table_or_view', 'OrderByClauseSansFast1') IS NOT NULL ALTER TABLE $table_or_view DROP COLUMN OrderByClauseSansFast1;
+IF COL_LENGTH('$table_or_view', 'kUserName') IS NOT NULL ALTER TABLE $table_or_view DROP COLUMN kUserName;
+IF COL_LENGTH('$table_or_view', 'kName') IS NOT NULL ALTER TABLE $table_or_view DROP COLUMN kName;
 
-
+GO
 
 -- Add columns we need for analysis
 ALTER TABLE $table_or_view ADD SelectPosition INT
 ALTER TABLE $table_or_view ADD WherePosition INT
 ALTER TABLE $table_or_view ADD OrderByPosition INT
-ALTER TABLE $table_or_view ADD FastPosition NVARCHAR(MAX)    
+ALTER TABLE $table_or_view ADD FastPosition INT 
 ALTER TABLE $table_or_view ADD FastValue NVARCHAR(MAX)    
-ALTER TABLE $table_or_view ADD SelectList NVARCHAR(MAX)
-ALTER TABLE $table_or_view ADD WhereClause NVARCHAR(MAX)
-ALTER TABLE $table_or_view ADD OrderByClause NVARCHAR(MAX)    
+ALTER TABLE $table_or_view ADD SelectList NVARCHAR(4000)
+ALTER TABLE $table_or_view ADD WhereClause NVARCHAR(4000)
+ALTER TABLE $table_or_view ADD OrderByClause NVARCHAR(4000)    
+ALTER TABLE $table_or_view ADD OrderByClauseSansFast1 NVARCHAR(4000)
+ALTER TABLE $table_or_view ADD kUserName NVARCHAR(50)
+ALTER TABLE $table_or_view ADD kName NVARCHAR(50)
 
 "@
 
@@ -248,21 +250,32 @@ WHERE OrderByPosition > 0
 UPDATE $table_or_view
 SET FastPosition = 
 	CASE
-		WHEN CHARINDEX('Option (FAST', statement) > 0 THEN
-			CHARINDEX('Option (FAST', statement) + LEN('Option (FAST') 
+		WHEN CHARINDEX('Option (FAST ', OrderByClause) > 0 THEN
+			CHARINDEX('Option (FAST ', OrderByClause) 
 		ELSE
 			NULL
 	END,
-	FastValue = 
-	CASE 
-		WHEN CHARINDEX('Option (FAST', statement) > 0 THEN
-            CAST(SUBSTRING(statement, CHARINDEX('Option (FAST', statement) + LEN('Option (FAST'), 
-            CHARINDEX(')', statement, CHARINDEX('Option (FAST', statement)) - (CHARINDEX('Option (FAST', statement) + LEN('Option (FAST'))) AS INT)			
-		ELSE
-			NULL
-	END
+    FastValue = 
+        CASE 
+            WHEN CHARINDEX('Option (FAST ', OrderByClause) > 0 
+                THEN CAST(SUBSTRING(OrderByClause, CHARINDEX('Option (FAST ', OrderByClause) + LEN('Option (FAST '), CHARINDEX(')', OrderByClause, CHARINDEX('Option (FAST ', OrderByClause) + LEN('Option (FAST ')) - (CHARINDEX('Option (FAST ', OrderByClause) + LEN('Option (FAST '))) AS INT)
+            ELSE NULL
+        END,
+    OrderByClauseSansFast1 = 
+        CASE
+            WHEN CHARINDEX('Option (FAST ', OrderByClause) > 0
+                THEN SUBSTRING(OrderByClause,0,FastPosition)
+			WHEN (FastPosition = 0 OR FastPosition IS NULL) THEN OrderByClause
+            ELSE NULL
+        END 
+
 FROM $table_or_view
 WHERE SelectPosition > 0
+
+UPDATE $table_or_view
+SET OrderByClauseSansFast1 = SUBSTRING(OrderByClause, 0, FastPosition) 
+FROM $table_or_view
+WHERE FastPosition > 0
 
 IF EXISTS(
     SELECT 1
@@ -356,7 +369,7 @@ SELECT
     options_text, client_app_name,object_name,cpu_time, duration, physical_reads, 
     logical_reads, writes, spills, row_count, result, 
     statement, SelectPosition, WherePosition, OrderByPosition, 
-    FastPosition, FastValue, SelectList, WhereClause, OrderByClause         
+    FastPosition, FastValue, SelectList, WhereClause, OrderByClause, OrderByClauseSansFast1        
 FROM            $($table_or_view)
 WHERE        
     (SelectPosition > 0)    
@@ -382,15 +395,33 @@ GO
 
         # we throw away the results, an error would be trapped if there was one
         Write-TraceWithTimestamp -logFullPath $gLogFullPath -message $full_sql -logMessageType Info 
-        Execute-Query -config $config -query $full_sql -OutputAs DataTables
+        Execute-Query -config $config -query $full_sql -OutputAs DataTables -ErrorAction Stop
     }
 
     $gStepTracker.SetStep([Step]::EditTablesWithNewData, [Status]::InProgress)
 
     $gStepTracker.SetStep([Step]::EditTablesWithNewData, [Status]::Completed)
-
-
 }
+
+function New-Indexes{
+    param(
+        [Parameter(Mandatory=$true)]$config
+    )
+
+    $gStepTracker.SetStep([Step]::CreateIndexes, [Status]::InProgress)
+    $config.DataTablesToExport | ForEach-Object {
+        $tsql = @"
+CREATE CLUSTERED INDEX clsKey ON $($_)(kUserName ASC, timestamp)
+CREATE NONCLUSTERED INDEX idxCovering ON $($_)(kUserName, timestamp, kName) INCLUDE(name, SelectList, WhereClause, OrderByClause, OrderByClauseSansFast1)
+"@
+    
+        Write-TraceWithTimestamp -logFullPath $gLogFullPath -message $tsql -logMessageType Info 
+        Execute-Query -config $config -query $tsql -OutputAs DataRows -ErrorAction Stop
+    }
+
+    $gStepTracker.SetStep([Step]::CreateIndexes, [Status]::InProgress)
+}
+
 function New-Views{
     param(
         [Parameter(Mandatory=$true)]$config
@@ -409,7 +440,7 @@ $(New-StatsViews -table_or_view $_)
 
         # we throw away the results, an error would be trapped if there was one
         Write-TraceWithTimestamp -logFullPath $gLogFullPath -message $full_sql -logMessageType Info 
-        Execute-Query -config $config -query $full_sql -OutputAs DataTables
+        Execute-Query -config $config -query $full_sql -OutputAs DataTables -ErrorAction Stop
     }
 
     $gStepTracker.SetStep([Step]::CreateViews, [Status]::Completed)    
@@ -425,7 +456,8 @@ try {
     $config = Get-Config -file_path $gScriptConfigPath
 
     # Edit-TablesWithNewData -config $config
-    New-Views -config $config        
+    # New-Views -config $config        
+    New-Indexes -config $config 
 return
     # Install extended events if asked to do so
     if ($install_extended_events){
