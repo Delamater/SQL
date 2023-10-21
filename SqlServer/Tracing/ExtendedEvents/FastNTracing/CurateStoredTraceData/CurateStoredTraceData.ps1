@@ -6,7 +6,8 @@ param(
 
 enum Step{
     InitializeScript
-    CreateViewsWithNewData
+    EditTablesWithNewData
+    CreateViews
     Step1
     Step2
     Step3
@@ -15,7 +16,8 @@ enum Step{
 # Define the steps descriptions
 $stepDescriptions = [ordered]@{
     InitializeScript                    = "Initialize Script"
-    CreateViewsWithNewData              = "Add columns to base table and create view"
+    EditTablesWithNewData               = "Edits tables to create new data needed for analysis"
+    CreateViews              = "Creates necessary views"
     Step1                   = "Step1 Desc"
     Step2                   = "Step2 Desc"
     Step3                   = "Step3 Desc"
@@ -285,7 +287,57 @@ END CATCH
     return $tsql
 }
 
-function New-View{
+function New-StatsViews{
+    param(
+        [Parameter(Mandatory=$true)][string]$table_or_view
+    )
+    # Add a "v" in front of the table name for views
+    $view_name = $table_or_view -replace '^(.*?)\.', '$1.v'
+    $view_name += "_STATS"
+
+    $tsql = @"
+DROP VIEW IF EXISTS $($view_name)
+
+GO
+
+CREATE VIEW $($view_name) AS 
+SELECT 
+    statement, 
+    COUNT(*) AS ExecutionCount, 
+    --AVG(duration) AS AverageDuration_Microseconds,
+    --STDEV(duration) AS StdDevDuration_Microseconds,
+    --MIN(duration) AS MinDuration_Microseconds,
+    --MAX(duration) AS MaxDuration_Microseconds,
+    AVG(duration)/1000000.0 AS AVG_duration_Seconds,
+    STDEV(duration)/1000000.0 AS STDEV_duration_Seconds,
+    MIN(duration)/1000000.0 AS MIN_duration_Seconds,
+    MAX(duration)/1000000.0 AS MAX_duration_Seconds,
+    AVG(cpu_time) AS AVG_cpu_time,
+    MIN(cpu_time) AS MIN_cpu_time,
+    MAX(cpu_time) AS MAX_cpu_time,
+    AVG(physical_reads) AS AVG_physical_reads,
+    MIN(physical_reads) AS MIN_physical_reads,
+    MAX(physical_reads) AS MAX_physical_reads,
+    STDEV(physical_reads) AS STDEV_physical_reads,
+    AVG(logical_reads) AS AVG_logical_read,
+    MIN(logical_reads) AS MIN_logical_read,
+    MAX(logical_reads) AS MAX_logical_read,
+    STDEV(logical_reads) AS STDEV_logical_read,
+    AVG(writes) AS AVG_writes,
+    MIN(writes) AS MIN_writes,
+    MAX(writes) AS MAX_writes,
+    STDEV(writes) AS STDEV_writes,
+    AVG(row_count) Avg_row_count
+FROM $($table_or_view)
+WHERE 
+    (SelectPosition > 0)    
+    AND name = 'sp_statement_completed'
+GROUP BY statement
+"@    
+
+    return $tsql
+}
+function New-BaseViews{
     param(
         [Parameter(Mandatory=$true)][string]$table_or_view
     )
@@ -314,13 +366,11 @@ WHERE
     return $tsql
 }
 
-
-function New-ViewsWithNewData{
+function Edit-TablesWithNewData{
     param(
         [Parameter(Mandatory=$true)]$config
     )
-
-    $gStepTracker.SetStep([Step]::CreateViewsWithNewData, [Status]::InProgress)
+    
     $config.DataTablesToExport | ForEach-Object {
 
         $full_sql = @"
@@ -328,7 +378,6 @@ $(Add-ColumnsToTable -table_or_view $_)
 GO
 $(Update-AddedColumns -table_or_view $_)
 GO
-$(New-View -table_or_view $_)
 "@
 
         # we throw away the results, an error would be trapped if there was one
@@ -336,7 +385,34 @@ $(New-View -table_or_view $_)
         Execute-Query -config $config -query $full_sql -OutputAs DataTables
     }
 
-    $gStepTracker.SetStep([Step]::CreateViewsWithNewData, [Status]::Completed)    
+    $gStepTracker.SetStep([Step]::EditTablesWithNewData, [Status]::InProgress)
+
+    $gStepTracker.SetStep([Step]::EditTablesWithNewData, [Status]::Completed)
+
+
+}
+function New-Views{
+    param(
+        [Parameter(Mandatory=$true)]$config
+    )
+
+    $gStepTracker.SetStep([Step]::CreateViews, [Status]::InProgress)
+    $config.DataTablesToExport | ForEach-Object {
+
+        $full_sql = @"
+$(New-BaseViews -table_or_view $_)
+
+GO
+
+$(New-StatsViews -table_or_view $_)
+"@
+
+        # we throw away the results, an error would be trapped if there was one
+        Write-TraceWithTimestamp -logFullPath $gLogFullPath -message $full_sql -logMessageType Info 
+        Execute-Query -config $config -query $full_sql -OutputAs DataTables
+    }
+
+    $gStepTracker.SetStep([Step]::CreateViews, [Status]::Completed)    
 }
 
 try {
@@ -348,7 +424,8 @@ try {
     Initialize 
     $config = Get-Config -file_path $gScriptConfigPath
 
-    New-ViewsWithNewData -config $config        
+    # Edit-TablesWithNewData -config $config
+    New-Views -config $config        
 return
     # Install extended events if asked to do so
     if ($install_extended_events){
