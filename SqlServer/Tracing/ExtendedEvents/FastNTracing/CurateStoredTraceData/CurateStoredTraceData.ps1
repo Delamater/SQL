@@ -403,6 +403,45 @@ GO
     $gStepTracker.SetStep([Step]::EditTablesWithNewData, [Status]::Completed)
 }
 
+
+function New-DetailedViews{
+    param(
+        [Parameter(Mandatory=$true)]$config
+    )
+
+    # DEFAULT vs FAST
+    $tsql = @"
+    CREATE VIEW dbo.vDEFAULT_vs_FALSE AS
+    select d.name, d.timestamp, d.statement, d.logical_reads logical_reads_d, f.logical_reads logical_reads_f, d.physical_reads physical_reads_d , f.physical_reads physical_reads_f, d.cpu_time cpu_time_d, f.cpu_time cpu_time_f, d.duration duration_d, f.duration duration_f
+    from dbo.vFAST_DEFAULT d
+        inner join dbo.vFAST_FALSE f
+            ON d.SelectList = f.SelectList
+            AND d.WhereClause = f.WhereClause
+            AND COALESCE(d.OrderByClause,'ZZZ') = COALESCE(f.OrderByClauseSansFast1,'ZZZ')
+    WHERE 
+        d.SelectPosition > 0 
+        AND d.statement NOT LIKE '%UPDATE%' AND d.statement NOT LIKE '%INSERT INTO%'
+"@
+    Write-TraceWithTimestamp -logFullPath $gLogFullPath -message $tsql -logMessageType Info 
+    Execute-Query -config $config -query $tsql -OutputAs DataRows -ErrorAction Stop
+
+    $tsql = @"
+CREATE VIEW dbo.vFALSE_vs_NONE AS
+select f.name, f.timestamp, f.statement, f.logical_reads logical_reads_f, n.logical_reads logical_reads_n, f.physical_reads physical_reads_f , n.physical_reads physical_reads_n, f.cpu_time cpu_time_f, n.cpu_time cpu_time_n, f.duration duration_f, n.duration duration_n
+from dbo.vFAST_FALSE f
+    inner join dbo.vFAST_NONE n
+        ON f.SelectList = n.SelectList
+        AND f.WhereClause = n.WhereClause
+        AND COALESCE(f.OrderByClause,'ZZZ') = COALESCE(n.OrderByClauseSansFast1,'ZZZ')
+WHERE 
+    f.SelectPosition > 0 
+    AND f.statement NOT LIKE '%UPDATE%' AND f.statement NOT LIKE '%INSERT INTO%'
+"@
+
+    Write-TraceWithTimestamp -logFullPath $gLogFullPath -message $tsql -logMessageType Info 
+    Execute-Query -config $config -query $tsql -OutputAs DataRows -ErrorAction Stop
+}
+
 function New-Indexes{
     param(
         [Parameter(Mandatory=$true)]$config
@@ -411,8 +450,11 @@ function New-Indexes{
     $gStepTracker.SetStep([Step]::CreateIndexes, [Status]::InProgress)
     $config.DataTablesToExport | ForEach-Object {
         $tsql = @"
+DROP INDEX IF EXISTS clsKey ON $($_)
+DROP INDEX IF EXISTS idxCovering ON $($_)
+GO
 CREATE CLUSTERED INDEX clsKey ON $($_)(kUserName ASC, timestamp)
-CREATE NONCLUSTERED INDEX idxCovering ON $($_)(kUserName, timestamp, kName) INCLUDE(name, SelectList, WhereClause, OrderByClause, OrderByClauseSansFast1)
+CREATE NONCLUSTERED INDEX idxCovering ON $($_)(kUserName, timestamp, kName) INCLUDE(name, SelectList, WhereClause, OrderByClause, OrderByClauseSansFast1, logical_reads, physical_reads, duration, cpu_time)
 "@
     
         Write-TraceWithTimestamp -logFullPath $gLogFullPath -message $tsql -logMessageType Info 
@@ -458,6 +500,7 @@ try {
     # Edit-TablesWithNewData -config $config
     # New-Views -config $config        
     New-Indexes -config $config 
+    New-DetailedViews -config $config 
 return
     # Install extended events if asked to do so
     if ($install_extended_events){
